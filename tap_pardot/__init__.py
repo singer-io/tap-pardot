@@ -27,6 +27,18 @@ SCHEMA_INFO = {
     "sample_stream": {
         "key_properties": ["integer_field"],
         "valid_replication_keys": ["datetime_field"],
+    },
+    "email_clicks": {
+        "key_properties": ["id"],
+        "valid_replication_keys": ["created_at"],
+    },
+    "visitor_activity": {
+        "key_properties": ["id"],
+        "valid_replication_keys": ["created_at"],
+    },
+    "prospect_account": {
+        "key_properties": ["id"],
+        "valid_replication_keys": ["id"],
     }
 }
 
