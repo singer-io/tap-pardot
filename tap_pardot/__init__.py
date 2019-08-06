@@ -4,7 +4,7 @@ import json
 import singer
 from singer import utils, metadata
 
-REQUIRED_CONFIG_KEYS = ["start_date", "username", "password"]
+REQUIRED_CONFIG_KEYS = ["start_date", "email", "password", "user_key"]
 LOGGER = singer.get_logger()
 
 def get_abs_path(path):
@@ -22,23 +22,28 @@ def load_schemas():
 
     return schemas
 
+# TODO: Replace with class when implementing sync
+SCHEMA_INFO = {
+    "sample_stream": {
+        "key_properties": ["integer_field"],
+        "valid_replication_keys": ["datetime_field"],
+    }
+}
+
 def discover():
     raw_schemas = load_schemas()
     streams = []
 
     for schema_name, schema in raw_schemas.items():
-
-        # TODO: populate any metadata and stream's key properties here..
-        stream_metadata = []
-        stream_key_properties = []
-
         # create and add catalog entry
         catalog_entry = {
             'stream': schema_name,
             'tap_stream_id': schema_name,
             'schema': schema,
-            'metadata' : [],
-            'key_properties': []
+            'metadata' : metadata.get_standard_metadata(schema=schema,
+                                                        key_properties=SCHEMA_INFO[schema_name]["key_properties"],
+                                                        valid_replication_keys=SCHEMA_INFO[schema_name]["valid_replication_keys"]),
+            'key_properties': SCHEMA_INFO[schema_name]["key_properties"]
         }
         streams.append(catalog_entry)
 
@@ -77,6 +82,8 @@ def main():
 
     # Parse command line arguments
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
+
+    # TODO: Authenticate here?
 
     # If discover flag was passed, run discovery mode and dump output to stdout
     if args.discover:

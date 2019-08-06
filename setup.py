@@ -10,7 +10,7 @@ setup(
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["tap_pardot"],
     install_requires=[
-        "singer-python>=5.0.12",
+        "singer-python==5.8.0",
         "requests",
     ],
     entry_points="""

@@ -1,5 +1,6 @@
 {
-  "username": "my_username",
-  "password": "my_password",
-  "start_date": "2017-01-01T00:00:00Z"
+  "email": "my_email@example.com",
+  "password": "Password12345@",
+  "start_date": "2017-01-01",
+  "user_key": "5a1698a233e73d7c8ccd60d775fbc68a"
 }
