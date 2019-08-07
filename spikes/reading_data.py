@@ -18,11 +18,17 @@ class Client():
     creds = None
     TEST_URL = None
     # TODO: This could probably be refactored
+    # {objectName}/version/{api_version}/do/{action}
     endpoint_map = {
         "emailClick": "emailClick/version/{}/do/query",
         "prospectAccount": "prospectAccount/version/{}/do/query",
         "visitorActivity": "visitorActivity/version/{}/do/query",
     }
+
+    describe_map = {
+        "prospectAccount": "prospectAccount/version/{}/do/describe",
+    }
+    
 
     def __init__(self, creds):
         # Do login
@@ -52,6 +58,28 @@ class Client():
         self.api_version = content['version']
         self.api_key = content['api_key']
 
+    def _get_auth_header(self):
+        return {"Authorization": "Pardot api_key={}, user_key={}".format(self.api_key, self.creds["user_key"])}
+
+    def describe(self, endpoint, **kwargs):
+
+        describe_url = self.describe_map.get(endpoint)
+
+        if describe_url is None:
+            raise Exception("No describe operation for endpoint {}".format(endpoint))
+
+
+        url = (ENDPOINT_BASE + describe_url).format(self.api_version)
+
+        headers = self._get_auth_header()
+        response = requests.get(url,
+                                 headers=headers,
+                                 params={"format":"json",
+                                         "output": "bulk",
+                                         **kwargs})
+        
+        return response
+
     def get(self, endpoint, format_params=None, **kwargs):
         # Not worrying about a backoff pattern for the spike
         # Error code 1 indicates a bad api_key or user_key
@@ -67,7 +95,7 @@ class Client():
         # implementation
 
         # TODO: In implementation, log the request (sanitized) at this point
-        headers = {"Authorization": "Pardot api_key={}, user_key={}".format(self.api_key, self.creds["user_key"])}
+        headers = self._get_auth_header()
 
         response = requests.get(url,
                                  headers=headers,
@@ -125,5 +153,5 @@ test = Client(config)
 
 # These appear to be immutable, so bookmark and sort on created_at
 
-import ipdb
-ipdb.set_trace()
+#import pdb
+pdb.set_trace()
