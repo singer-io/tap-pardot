@@ -93,7 +93,7 @@ class Client():
         headers = self._get_auth_header()
         params={"format":"json", "output": "bulk", **kwargs}
         
-        LOGGER.info("{} - Making request to GET endpoint {}, with params {}", endpoint, url, params)
+        LOGGER.info("%s - Making request to GET endpoint %s, with params %s", endpoint, url, params)
         content = self._make_request(url, headers, params)
         
         error_message = content.get("err")
@@ -123,7 +123,7 @@ class Client():
         headers = self._get_auth_header()
         params={"format":"json", "output": "bulk", **kwargs}
 
-        LOGGER.info("{} - Making request to GET endpoint {}, with params {}", endpoint, url, params)
+        LOGGER.info("%s - Making request to GET endpoint %s, with params %s", endpoint, url, params)
         content = self._make_request(url, headers, params)
         
         error_message = content.get("err")

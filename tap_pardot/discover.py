@@ -1,26 +1,7 @@
 import os
 import json
 from singer import metadata
-
-# TODO: Replace with class when implementing sync
-SCHEMA_INFO = {
-    "email_clicks": {
-        "key_properties": ["id"],
-        "valid_replication_keys": ["id"],
-    },
-    "visitor_activity": {
-        "key_properties": ["id"],
-        "valid_replication_keys": ["created_at"],
-    },
-}
-
-DYNAMIC_SCHEMAS = {
-    # TODO: prospect_account.assigned_to looks like a full `user` object. Denest to ID or email only?
-    "prospect_account": {
-        "key_properties": ["id"],
-        "valid_replication_keys": ["updated_at"],
-    }
-}
+from .streams import STREAM_OBJECTS
 
 STRING_TYPES = set(["text", "dropdown", "textarea"])
 INTEGER_TYPES = set()
@@ -59,14 +40,15 @@ def _load_schemas(client):
         with open(path) as file:
             schemas[file_raw] = json.load(file)
 
-    for stream in DYNAMIC_SCHEMAS.keys():
-        # Client describe
-        schema_response = client.describe(stream)
-        # Parse Result into JSON Schema
-        dynamic_schema_parts = _parse_schema_description(schema_response)
-        # Add to schemas
-        schemas[stream] = {"type": "object",
-                           "properties": {**schemas[stream]["properties"], **dynamic_schema_parts}}
+    for stream in schemas.keys():
+        if STREAM_OBJECTS[stream].is_dynamic:
+            # Client describe
+            schema_response = client.describe(stream)
+            # Parse Result into JSON Schema
+            dynamic_schema_parts = _parse_schema_description(schema_response)
+            # Add to schemas
+            schemas[stream] = {"type": "object",
+                               "properties": {**schemas[stream]["properties"], **dynamic_schema_parts}}
 
     return schemas
 
@@ -74,17 +56,17 @@ def discover(client):
     raw_schemas = _load_schemas(client)
     streams = []
 
-    for schema_name, schema in raw_schemas.items():
+    for stream_name, schema in raw_schemas.items():
         # create and add catalog entry
-        schema_entry = SCHEMA_INFO.get(schema_name) or DYNAMIC_SCHEMAS.get(schema_name)
+        stream = STREAM_OBJECTS[stream_name]
         catalog_entry = {
-            'stream': schema_name,
-            'tap_stream_id': schema_name,
+            'stream': stream_name,
+            'tap_stream_id': stream_name,
             'schema': schema,
             'metadata' : metadata.get_standard_metadata(schema=schema,
-                                                        key_properties=schema_entry["key_properties"],
-                                                        valid_replication_keys=schema_entry["valid_replication_keys"]),
-            'key_properties': schema_entry["key_properties"]
+                                                        key_properties=stream.key_properties,
+                                                        valid_replication_keys=stream.replication_keys),
+            'key_properties': stream.key_properties
         }
         streams.append(catalog_entry)
 

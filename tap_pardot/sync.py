@@ -2,6 +2,9 @@ import singer
 
 LOGGER = singer.get_logger()
 
+def sync_stream(client, config, state, stream):
+    pass
+
 def sync(client, config, state, catalog):
 
     selected_streams = catalog.get_selected_streams(state)
