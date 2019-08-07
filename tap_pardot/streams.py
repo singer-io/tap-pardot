@@ -3,46 +3,85 @@ import singer
 # TODO: Update client and discovery to use these classes
 class Stream():
     stream_name = None
+    data_key = None
     key_properties = []
     replication_keys = []
     client = None
+    config = None
+    state = None
     is_dynamic = False
-    
-    def __init__(self, client):
+
+    def __init__(self, client, config, state):
        self.client = client
+       self.state = state
+       self.config = config
+
+    def get_default_start(self):
+        return self.config["start_date"]
+
+    def get_params(self):
+        return {}
 
     def get_bookmark(self):
-        pass
+        return singer.bookmarks.get_bookmark(self.state, self.stream_name, self.replication_keys[0]) \
+            or self.get_default_start()
 
     def update_bookmark(self, bookmark_value, bookmark_key=None):
-        pass
+        write_bookmark(self.state, self.stream_name, self.replication_keys[0], bookmark_value)
+        singer.write_state(self.state)
 
-    def sync(self, state):
-        # Make requests using client
-        # yield record values
-        # sync will write those to output
-        pass
+    def sync(self):
+        data = self.client.get(self.stream_name, **self.get_params())
+        # TODO: Pagination? We'll need to continue past the 200 limit somehow
+        last_bookmark_value = None
+        for rec in data['result'][self.data_key]:
+            current_bookmark_value = rec[self.replication_keys[0]]
+            if last_bookmark_value is None:
+                last_bookmark_value = current_bookmark_value
 
-class EmailClicks(Stream):
-    stream_name = "email_clicks"
+            if current_bookmark_value < last_bookmark_value:
+                raise Exception("Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(current_bookmark_value, last_bookmark_value))
+            yield rec
+
+class EmailClick(Stream):
+    stream_name = "email_click"
     replication_keys = ["id"]
+    data_key = "emailClick"
     key_properties = ["id"]
+    is_dynamic = False
+
+    def get_default_start(self):
+        return 0
+
+    def get_params(self):
+        return {"created_after": self.config["start_date"], "id_greater_than": self.get_bookmark()}
 
 class VisitorActivity(Stream):
     stream_name = "visitor_activity"
-    replication_keys = ["created_at"]
+    data_key = "visitor_activity"
+    replication_keys = ["id"]
     key_properties = ["id"]
+    is_dynamic = False
+
+    def get_default_start(self):
+        return 0
+
+    def get_params(self):
+        return {"created_after": self.config["start_date"], "id_greater_than": self.get_bookmark()}
 
 class ProspectAccount(Stream):
     stream_name = "prospect_account"
+    data_key = "prospectAccount"
     replication_keys = ["updated_at"]
     key_properties = ["id"]
     is_dynamic = True
 
+    def get_params(self):
+        return {"updated_after": self.get_bookmark(), "sort_by": "updated_at", "sort_order": "ascending"}
 
 
 STREAM_OBJECTS = {
-    'email_clicks': EmailClicks,
+    'email_click': EmailClick,
     'visitor_activity': VisitorActivity,
     'prospect_account': ProspectAccount,
 }

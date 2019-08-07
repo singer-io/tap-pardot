@@ -35,7 +35,6 @@ class Client():
     }
 
     def __init__(self, creds):
-        # Do login
         self.creds = creds
         self.login()
 
@@ -67,6 +66,7 @@ class Client():
 
     def _make_request(self, url, headers=None, params=None):
         response = requests.get(url, headers=headers, params=params)
+        response.raise_for_status()
         content = response.json()
         error_message = content.get("err")
 
