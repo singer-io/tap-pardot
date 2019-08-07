@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import requests
 import backoff
 import singer
@@ -34,7 +33,6 @@ class Client():
     describe_map = {
         "prospect_account": "prospectAccount/version/{}/do/describe",
     }
-    
 
     def __init__(self, creds):
         # Do login
@@ -89,7 +87,6 @@ class Client():
 
         if describe_url is None:
             raise Exception("No describe operation for endpoint {}".format(endpoint))
-
 
         url = (ENDPOINT_BASE + describe_url).format(self.api_version)
 
