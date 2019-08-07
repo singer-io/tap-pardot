@@ -13,6 +13,12 @@ class PardotException(Exception):
         self.response = response_content
         super().__init__(message)
 
+def is_retryable_pardot_exception(exc):
+    if exc.code == "66":
+        LOGGER.warn("Exceeded concurrent request limit, backing off exponentially.")
+        return True
+    return False
+
 class Client():
     """
     Lightweight Client wrapper to allow switching between version 3 and 4
@@ -81,6 +87,10 @@ class Client():
 
         return content
     
+    @backoff.on_exception(backoff.expo,
+                          (PardotException),
+                          giveup=is_retryable_pardot_exception,
+                          jitter=None)
     def describe(self, endpoint, **kwargs):
 
         describe_url = self.describe_map.get(endpoint)
@@ -106,6 +116,10 @@ class Client():
 
         return content
 
+    @backoff.on_exception(backoff.expo,
+                          (PardotException),
+                          giveup=is_retryable_pardot_exception,
+                          jitter=None)
     def get(self, endpoint, format_params=None, **kwargs):
         # Not worrying about a backoff pattern for the spike
         # Error code 1 indicates a bad api_key or user_key
