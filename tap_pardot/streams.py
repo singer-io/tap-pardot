@@ -26,14 +26,19 @@ class Stream():
         return singer.bookmarks.get_bookmark(self.state, self.stream_name, self.replication_keys[0]) \
             or self.get_default_start()
 
-    def update_bookmark(self, bookmark_value, bookmark_key=None):
-        write_bookmark(self.state, self.stream_name, self.replication_keys[0], bookmark_value)
+    def update_bookmark(self, bookmark_value):
+        singer.bookmarks.write_bookmark(self.state, self.stream_name, self.replication_keys[0], bookmark_value)
         singer.write_state(self.state)
 
     def sync(self):
         data = self.client.get(self.stream_name, **self.get_params())
+
+        if data['result'] is None or data['result'].get('total_results') == 0:
+            return
+
         # TODO: Pagination? We'll need to continue past the 200 limit somehow
         last_bookmark_value = None
+
         for rec in data['result'][self.data_key]:
             current_bookmark_value = rec[self.replication_keys[0]]
             if last_bookmark_value is None:
@@ -41,6 +46,7 @@ class Stream():
 
             if current_bookmark_value < last_bookmark_value:
                 raise Exception("Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(current_bookmark_value, last_bookmark_value))
+            self.update_bookmark(current_bookmark_value)
             yield rec
 
 class EmailClick(Stream):
