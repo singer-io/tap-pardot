@@ -28,8 +28,7 @@ class Client():
     api_key = None
     creds = None
     TEST_URL = None
-    # TODO: This could probably be refactored
-    # {objectName}/version/{api_version}/do/{action}
+
     endpoint_map = {
         "email_click": "emailClick/version/{}/do/query",
         "prospect_account": "prospectAccount/version/{}/do/query",
@@ -64,9 +63,8 @@ class Client():
             error_code = content["@attributes"]["err_code"] # E.g., "15" for login failed
             raise PardotException("Pardot returned error code {} while authenticating. Message: {}".format(error_code, error_message), content)
 
-        self.api_version = content['version']
+        self.api_version = content.get('version') or "3"
         self.api_key = content['api_key']
-
     def _get_auth_header(self):
         return {"Authorization": "Pardot api_key={}, user_key={}".format(self.api_key, self.creds["user_key"])}
 
@@ -109,9 +107,6 @@ class Client():
         error_message = content.get("err")
         if error_message:
             error_code = content["@attributes"]["err_code"] # E.g., "15" for login failed
-            # TODO: This should use a custom exception type so that the calling code can check for retryable errors
-            # - And the client itself can wrap and check for relogin being needed
-            # - Error code 1 is invalid API key or user key - aka relogin
             raise PardotException("{} - Pardot returned error code {} while describing endpoint. Message: {}".format(endpoint, error_code, error_message), content)
 
         return content
@@ -130,9 +125,6 @@ class Client():
         if format_params:
             base_formatting.extend(format_params)
         url = url.format(*base_formatting)
-        # TODO: Switch on version between the quirks of each? Out of
-        # scope, not sure if this should be in the client or in the stream
-        # implementation
 
         headers = self._get_auth_header()
         params={"format":"json", "output": "bulk", **kwargs}
@@ -143,8 +135,6 @@ class Client():
         error_message = content.get("err")
         if error_message:
             error_code = content["@attributes"]["err_code"] # E.g., "15" for login failed
-            # TODO: This should use a custom exception type so that the calling code can check for retryable errors
-            # - And the client itself can wrap and check for relogin being needed
             raise PardotException("{} - Pardot returned error code {} while retreiving endpoint. Message: {}".format(endpoint, error_code, error_message), content)
 
         return content

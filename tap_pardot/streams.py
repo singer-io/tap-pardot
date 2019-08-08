@@ -1,6 +1,5 @@
 import singer
 
-# TODO: Update client and discovery to use these classes
 class Stream():
     stream_name = None
     data_key = None
@@ -36,7 +35,6 @@ class Stream():
         if data['result'] is None or data['result'].get('total_results') == 0:
             return
 
-        # TODO: Pagination? We'll need to continue past the 200 limit somehow
         last_bookmark_value = None
 
         for rec in data['result'][self.data_key]:
