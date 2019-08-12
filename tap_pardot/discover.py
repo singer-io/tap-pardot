@@ -3,31 +3,23 @@ import json
 from singer import metadata, Catalog
 from .streams import STREAM_OBJECTS
 
-STRING_TYPES = set(["text", "dropdown", "textarea"])
-INTEGER_TYPES = set()
-NUMBER_TYPES = set()
-DATETIME_TYPES = set() # TODO: Datetime types may not actually come through the `describe` endpoint.
-
 def _get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
-
-def _translate_type_to_schema(type):
-    if type in STRING_TYPES:
-        return {"type": ["null", "string"]}
-    elif type in INTEGER_TYPES:
-        return {"type": ["null", "integer"]}
-    elif type in NUMBER_TYPES:
-        return {"type": ["null", "number"]} # TODO: Precision?
-    elif type in DATETIME_TYPES:
-        return {"type": ["null", "string"],
-                "format": "date-time"}
-    else:
-        raise Exception("Bad schema type {}".format(type))
 
 def _parse_schema_description(description):
     subschemas = {}
     for field in description['result']['field']:
-        subschemas[field["@attributes"]["id"]] = _translate_type_to_schema(field["@attributes"]["type"])
+        # NB: Some fields have been observed to come through as objects.
+        #     This was seen on type of 'dropdown' and 'text' with a value
+        #     of either a string or integer, so these schemas are merged.
+        subschemas[field["@attributes"]["id"]] = {
+            "type": ["null", "string", "object"],
+            "properties": {
+                "value": {
+                    "type": ["null", "integer", "string"]
+                }
+            }
+        }
     return subschemas
 
 # Load schemas from schemas folder

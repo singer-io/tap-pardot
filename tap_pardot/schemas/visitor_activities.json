@@ -1,6 +1,5 @@
 {
   "type": ["null", "object"],
-  "additionalProperties": false,
   "properties": {
     "id": {
       "type": ["integer"]
@@ -57,7 +56,8 @@
       "type": ["null", "object"]
     },
     "created_at": {
-      "type": ["null", "timestamp"]
+      "type": ["null", "string"],
+      "format": "date-time"
     }
   }
 }
