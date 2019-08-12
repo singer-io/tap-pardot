@@ -47,8 +47,8 @@ class Stream():
             self.update_bookmark(current_bookmark_value)
             yield rec
 
-class EmailClick(Stream):
-    stream_name = "email_click"
+class EmailClicks(Stream):
+    stream_name = "email_clicks"
     replication_keys = ["id"]
     data_key = "emailClick"
     key_properties = ["id"]
@@ -60,8 +60,8 @@ class EmailClick(Stream):
     def get_params(self):
         return {"created_after": self.config["start_date"], "id_greater_than": self.get_bookmark()}
 
-class VisitorActivity(Stream):
-    stream_name = "visitor_activity"
+class VisitorActivities(Stream):
+    stream_name = "visitor_activities"
     data_key = "visitor_activity"
     replication_keys = ["id"]
     key_properties = ["id"]
@@ -73,8 +73,8 @@ class VisitorActivity(Stream):
     def get_params(self):
         return {"created_after": self.config["start_date"], "id_greater_than": self.get_bookmark()}
 
-class ProspectAccount(Stream):
-    stream_name = "prospect_account"
+class ProspectAccounts(Stream):
+    stream_name = "prospect_accounts"
     data_key = "prospectAccount"
     replication_keys = ["updated_at"]
     key_properties = ["id"]
@@ -95,11 +95,10 @@ class Campaign(Stream):
 
     def get_params(self):
         return {"updated_after": self.get_bookmark(), "sort_by": "updated_at", "sort_order": "ascending"}
-    
 
 STREAM_OBJECTS = {
-    'email_click': EmailClick,
-    'visitor_activity': VisitorActivity,
-    'prospect_account': ProspectAccount,
+    'email_clicks': EmailClicks,
+    'visitor_activities': VisitorActivities,
+    'prospect_accounts': ProspectAccounts,
     'campaign': Campaign,
 }

@@ -30,13 +30,13 @@ class Client():
     TEST_URL = None
 
     endpoint_map = {
-        "email_click": "emailClick/version/{}/do/query",
-        "prospect_account": "prospectAccount/version/{}/do/query",
-        "visitor_activity": "visitorActivity/version/{}/do/query",
+        "email_clicks": "emailClick/version/{}/do/query",
+        "prospect_accounts": "prospectAccount/version/{}/do/query",
+        "visitor_activities": "visitorActivity/version/{}/do/query",
     }
 
     describe_map = {
-        "prospect_account": "prospectAccount/version/{}/do/describe",
+        "prospect_accounts": "prospectAccount/version/{}/do/describe",
     }
 
     def __init__(self, creds):
