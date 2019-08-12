@@ -83,9 +83,23 @@ class ProspectAccount(Stream):
     def get_params(self):
         return {"updated_after": self.get_bookmark(), "sort_by": "updated_at", "sort_order": "ascending"}
 
+##############
+# NEW STREAMS
+##############
+class Campaign(Stream):
+    stream_name = "campaign"
+    data_key = "campaign"
+    replication_keys = ["updated_at"]
+    key_properties = ["id"]
+    is_dynamic = False
+
+    def get_params(self):
+        return {"updated_after": self.get_bookmark(), "sort_by": "updated_at", "sort_order": "ascending"}
+    
 
 STREAM_OBJECTS = {
     'email_click': EmailClick,
     'visitor_activity': VisitorActivity,
     'prospect_account': ProspectAccount,
+    'campaign': Campaign,
 }

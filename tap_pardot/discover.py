@@ -1,6 +1,6 @@
 import os
 import json
-from singer import metadata
+from singer import metadata, Catalog
 from .streams import STREAM_OBJECTS
 
 STRING_TYPES = set(["text", "dropdown", "textarea"])
@@ -70,4 +70,4 @@ def discover(client):
         }
         streams.append(catalog_entry)
 
-    return {'streams': streams}
+    return Catalog.from_dict({"streams": streams})
