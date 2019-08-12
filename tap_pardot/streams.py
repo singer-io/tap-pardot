@@ -85,7 +85,14 @@ class ProspectAccount(Stream):
     def get_params(self):
         return {"updated_after": self.get_bookmark(), "sort_by": "updated_at", "sort_order": "ascending"}
 
+<<<<<<< Updated upstream
 class Campaign(Stream):
+=======
+##############
+# NEW STREAMS
+##############
+class Campaigns(Stream):
+>>>>>>> Stashed changes
     stream_name = "campaign"
     data_key = "campaign"
     replication_keys = ["updated_at"]
@@ -97,4 +104,8 @@ STREAM_OBJECTS = {
     'email_click': EmailClick,
     'visitor_activity': VisitorActivity,
     'prospect_account': ProspectAccount,
+<<<<<<< Updated upstream
+=======
+    'campaigns': Campaigns,
+>>>>>>> Stashed changes
 }
