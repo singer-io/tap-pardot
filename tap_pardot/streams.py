@@ -1,6 +1,5 @@
 import singer
 
-# TODO: Update client and discovery to use these classes
 class Stream():
     stream_name = None
     data_key = None
@@ -36,7 +35,6 @@ class Stream():
         if data['result'] is None or data['result'].get('total_results') == 0:
             return
 
-        # TODO: Pagination? We'll need to continue past the 200 limit somehow
         last_bookmark_value = None
 
         for rec in data['result'][self.data_key]:
@@ -85,14 +83,10 @@ class ProspectAccount(Stream):
     def get_params(self):
         return {"updated_after": self.get_bookmark(), "sort_by": "updated_at", "sort_order": "ascending"}
 
-<<<<<<< Updated upstream
-class Campaign(Stream):
-=======
 ##############
 # NEW STREAMS
 ##############
 class Campaigns(Stream):
->>>>>>> Stashed changes
     stream_name = "campaign"
     data_key = "campaign"
     replication_keys = ["updated_at"]
@@ -104,8 +98,5 @@ STREAM_OBJECTS = {
     'email_click': EmailClick,
     'visitor_activity': VisitorActivity,
     'prospect_account': ProspectAccount,
-<<<<<<< Updated upstream
-=======
     'campaigns': Campaigns,
->>>>>>> Stashed changes
 }
