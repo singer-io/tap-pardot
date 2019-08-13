@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import singer
 import json
+from singer.catalog import write_catalog
 from singer import utils
 from .client import Client
 from .discover import discover
@@ -22,7 +23,7 @@ def main():
     if args.discover:
         LOGGER.info("Starting discovery mode")
         catalog = discover(client)
-        print(json.dumps(catalog, indent=2))
+        write_catalog(catalog)
     # Otherwise run in sync mode
     else:
         LOGGER.info("Starting sync mode")

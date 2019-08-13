@@ -1,6 +1,6 @@
 import os
 import json
-from singer import metadata
+from singer import metadata, Catalog
 from .streams import STREAM_OBJECTS
 
 STRING_TYPES = set(["text", "dropdown", "textarea"])
@@ -37,8 +37,15 @@ def _load_schemas(client):
     for filename in os.listdir(_get_abs_path('schemas')):
         path = _get_abs_path('schemas') + '/' + filename
         file_raw = filename.replace('.json', '')
-        with open(path) as file:
-            schemas[file_raw] = json.load(file)
+
+        ### WIP: DON'T SYNC WORKING STREAMS
+
+        working_streams = ['email_clicks', 'visitor_activity', 'prospect_account' ]
+        if not file_raw in working_streams:
+            print("Opening file:")
+            print(file_raw)
+            with open(path) as file:
+                schemas[file_raw] = json.load(file)
 
     for stream in schemas.keys():
         if STREAM_OBJECTS[stream].is_dynamic:
@@ -70,4 +77,4 @@ def discover(client):
         }
         streams.append(catalog_entry)
 
-    return {'streams': streams}
+    return Catalog.from_dict({"streams": streams})
