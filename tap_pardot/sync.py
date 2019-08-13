@@ -1,12 +1,16 @@
 import singer
+from singer import metadata
+from singer import Transformer
 from .streams import STREAM_OBJECTS
 
 LOGGER = singer.get_logger()
 
-def sync_page(stream_id, stream_object):
+def sync_page(stream_id, stream_object, transformer, catalog_entry):
     records_synced = 0
     for rec in stream_object.sync():
-        singer.write_record(stream_id, rec)
+        singer.write_record(stream_id, transformer.transform(rec,
+                                                             catalog_entry.schema.to_dict(),
+                                                             metadata.to_map(catalog_entry.metadata)))
         records_synced += 1
     return bool(records_synced)
 
@@ -25,6 +29,7 @@ def sync(client, config, state, catalog):
         LOGGER.info("Starting discovery mode")
         LOGGER.info('Syncing stream: ' + stream_id)
         records_synced = True
-        while records_synced:
-            records_synced = sync_page(stream_id, stream_object)
+        with Transformer() as transformer:
+            while records_synced:
+                records_synced = sync_page(stream_id, stream_object, transformer, stream)
     return

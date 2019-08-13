@@ -37,7 +37,11 @@ class Stream():
 
         last_bookmark_value = None
 
-        for rec in data['result'][self.data_key]:
+        records = data['result'][self.data_key]
+        if isinstance(records, dict):
+            records = [records]
+
+        for rec in records:
             current_bookmark_value = rec[self.replication_keys[0]]
             if last_bookmark_value is None:
                 last_bookmark_value = current_bookmark_value
