@@ -31,9 +31,10 @@ class Client():
     # TODO: This could probably be refactored
     # {objectName}/version/{api_version}/do/{action}
     endpoint_map = {
-        "email_click": "emailClick/version/{}/do/query",
-        "prospect_account": "prospectAccount/version/{}/do/query",
-        "visitor_activity": "visitorActivity/version/{}/do/query",
+        "email_clicks": "emailClick/version/{}/do/query",
+        "prospect_accounts": "prospectAccount/version/{}/do/query",
+        "visitor_activities": "visitorActivity/version/{}/do/query",
+        "campaigns": "campaign/version/{}/do/query",
     }
 
     describe_map = {
