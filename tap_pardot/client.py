@@ -13,11 +13,11 @@ class PardotException(Exception):
         self.response = response_content
         super().__init__(message)
 
-def is_retryable_pardot_exception(exc):
-    if exc.code == "66":
+def is_not_retryable_pardot_exception(exc):
+    if exc.code == 66:
         LOGGER.warn("Exceeded concurrent request limit, backing off exponentially.")
-        return True
-    return False
+        return False
+    return True
 
 class Client():
     """
@@ -77,7 +77,7 @@ class Client():
         if error_message:
             error_code = content["@attributes"]["err_code"] # Error code of 1 is an expired api_key or user_key
 
-            if error_code == "1":
+            if error_code == 1:
                 LOGGER.info("API key or user key expired -- Reauthenticating once")
                 self.login()
                 response = requests.get(url, headers=headers, params=params)
@@ -87,7 +87,7 @@ class Client():
     
     @backoff.on_exception(backoff.expo,
                           (PardotException),
-                          giveup=is_retryable_pardot_exception,
+                          giveup=is_not_retryable_pardot_exception,
                           jitter=None)
     def describe(self, endpoint, **kwargs):
 
@@ -113,7 +113,7 @@ class Client():
 
     @backoff.on_exception(backoff.expo,
                           (PardotException),
-                          giveup=is_retryable_pardot_exception,
+                          giveup=is_not_retryable_pardot_exception,
                           jitter=None)
     def get(self, endpoint, format_params=None, **kwargs):
         # Not worrying about a backoff pattern for the spike
