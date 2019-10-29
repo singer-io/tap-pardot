@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
+
 import singer
-import json
-from singer.catalog import write_catalog
 from singer import utils
+from singer.catalog import write_catalog
+
 from .client import Client
 from .discover import discover
 from .sync import sync
@@ -10,6 +11,7 @@ from .sync import sync
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = ["start_date", "email", "password", "user_key"]
+
 
 @utils.handle_top_exception(LOGGER)
 def main():
@@ -30,9 +32,10 @@ def main():
         if args.catalog:
             catalog = args.catalog
         else:
-            catalog =  discover(client)
+            catalog = discover(client)
 
         sync(client, args.config, args.state, catalog)
+
 
 if __name__ == "__main__":
     main()
