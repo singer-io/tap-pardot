@@ -1,3 +1,5 @@
+import inspect
+
 import singer
 
 
@@ -131,8 +133,7 @@ class Campaign(Stream):
 
 
 STREAM_OBJECTS = {
-    "email_clicks": EmailClicks,
-    "visitor_activities": VisitorActivities,
-    "prospect_accounts": ProspectAccounts,
-    "campaign": Campaign,
+    cls.stream_name: cls
+    for cls in globals().values()
+    if inspect.isclass(cls) and issubclass(cls, Stream) and cls.stream_name
 }
