@@ -119,12 +119,10 @@ class ProspectAccounts(Stream):
         }
 
 
-##############
-# NEW STREAMS
-##############
-class Campaign(Stream):
-    stream_name = "campaign"
-    data_key = "campaign"
+class Prospects(Stream):
+    stream_name = "prospects"
+    data_key = "prospect"
+    endpoint = "prospect"
     replication_keys = ["updated_at"]
     key_properties = ["id"]
     is_dynamic = False
