@@ -6,12 +6,14 @@ import singer
 class Stream:
     stream_name = None
     data_key = None
+    endpoint = None
     key_properties = []
     replication_keys = []
+    is_dynamic = False
+
     client = None
     config = None
     state = None
-    is_dynamic = False
 
     def __init__(self, client, config, state):
         self.client = client
@@ -39,7 +41,7 @@ class Stream:
         singer.write_state(self.state)
 
     def sync(self):
-        data = self.client.get(self.stream_name, **self.get_params())
+        data = self.client.get(self.endpoint, **self.get_params())
 
         if data["result"] is None or data["result"].get("total_results") == 0:
             return
@@ -67,8 +69,9 @@ class Stream:
 
 class EmailClicks(Stream):
     stream_name = "email_clicks"
-    replication_keys = ["id"]
     data_key = "emailClick"
+    endpoint = "emailClick"
+    replication_keys = ["id"]
     key_properties = ["id"]
     is_dynamic = False
 
@@ -85,6 +88,7 @@ class EmailClicks(Stream):
 class VisitorActivities(Stream):
     stream_name = "visitor_activities"
     data_key = "visitor_activity"
+    endpoint = "visitorActivity"
     replication_keys = ["id"]
     key_properties = ["id"]
     is_dynamic = False
@@ -102,6 +106,7 @@ class VisitorActivities(Stream):
 class ProspectAccounts(Stream):
     stream_name = "prospect_accounts"
     data_key = "prospectAccount"
+    endpoint = "prospectAccount"
     replication_keys = ["updated_at"]
     key_properties = ["id"]
     is_dynamic = True

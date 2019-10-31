@@ -29,15 +29,9 @@ class Client:
     api_version = None
     api_key = None
     creds = None
-    TEST_URL = None
 
-    endpoint_map = {
-        "email_clicks": "emailClick/version/{}/do/query",
-        "prospect_accounts": "prospectAccount/version/{}/do/query",
-        "visitor_activities": "visitorActivity/version/{}/do/query",
-    }
-
-    describe_map = {"prospect_accounts": "prospectAccount/version/{}/do/describe"}
+    get_url = "{}/version/{}/do/query"
+    describe_url = "{}/version/{}/do/describe"
 
     def __init__(self, creds):
         self.creds = creds
@@ -108,13 +102,7 @@ class Client:
         jitter=None,
     )
     def describe(self, endpoint, **kwargs):
-
-        describe_url = self.describe_map.get(endpoint)
-
-        if describe_url is None:
-            raise Exception("No describe operation for endpoint {}".format(endpoint))
-
-        url = (ENDPOINT_BASE + describe_url).format(self.api_version)
+        url = (ENDPOINT_BASE + self.describe_url).format(endpoint, self.api_version)
 
         headers = self._get_auth_header()
         params = {"format": "json", "output": "bulk", **kwargs}
@@ -152,11 +140,10 @@ class Client:
         # Error code 1 indicates a bad api_key or user_key
         # If we get error code 1 then re-authenticate login
         # http://developer.pardot.com/kb/error-codes-messages/#error-code-1
-        url = ENDPOINT_BASE + self.endpoint_map[endpoint]
-        base_formatting = [self.api_version]
+        base_formatting = [endpoint, self.api_version]
         if format_params:
             base_formatting.extend(format_params)
-        url = url.format(*base_formatting)
+        url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
 
         headers = self._get_auth_header()
         params = {"format": "json", "output": "bulk", **kwargs}
