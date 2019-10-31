@@ -131,6 +131,14 @@ class Opportunities(UpdatedAtReplicationStream):
     is_dynamic = False
 
 
+class Users(UpdatedAtReplicationStream):
+    stream_name = "users"
+    data_key = "user"
+    endpoint = "user"
+
+    is_dynamic = False
+
+
 STREAM_OBJECTS = {
     cls.stream_name: cls
     for cls in globals().values()
