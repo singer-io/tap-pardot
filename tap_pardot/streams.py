@@ -7,7 +7,7 @@ class Stream:
     stream_name = None
     data_key = None
     endpoint = None
-    key_properties = []
+    key_properties = ["id"]
     replication_keys = []
     is_dynamic = False
 
@@ -67,88 +67,68 @@ class Stream:
             yield rec
 
 
-class EmailClicks(Stream):
+class IdReplicationStream(Stream):
+    replication_keys = ["id"]
+
+    def get_default_start(self):
+        return 0
+
+    def get_params(self):
+        return {
+            "created_after": self.config["start_date"],
+            "id_greater_than": self.get_bookmark(),
+        }
+
+
+class UpdatedAtReplicationStream(Stream):
+    replication_keys = ["updated_at"]
+
+    def get_params(self):
+        return {
+            "updated_after": self.get_bookmark(),
+            "sort_by": "updated_at",
+            "sort_order": "ascending",
+        }
+
+
+class EmailClicks(IdReplicationStream):
     stream_name = "email_clicks"
     data_key = "emailClick"
     endpoint = "emailClick"
-    replication_keys = ["id"]
-    key_properties = ["id"]
+
     is_dynamic = False
 
-    def get_default_start(self):
-        return 0
 
-    def get_params(self):
-        return {
-            "created_after": self.config["start_date"],
-            "id_greater_than": self.get_bookmark(),
-        }
-
-
-class VisitorActivities(Stream):
+class VisitorActivities(IdReplicationStream):
     stream_name = "visitor_activities"
     data_key = "visitor_activity"
     endpoint = "visitorActivity"
-    replication_keys = ["id"]
-    key_properties = ["id"]
+
     is_dynamic = False
 
-    def get_default_start(self):
-        return 0
 
-    def get_params(self):
-        return {
-            "created_after": self.config["start_date"],
-            "id_greater_than": self.get_bookmark(),
-        }
-
-
-class ProspectAccounts(Stream):
+class ProspectAccounts(UpdatedAtReplicationStream):
     stream_name = "prospect_accounts"
     data_key = "prospectAccount"
     endpoint = "prospectAccount"
-    replication_keys = ["updated_at"]
-    key_properties = ["id"]
+
     is_dynamic = True
 
-    def get_params(self):
-        return {
-            "updated_after": self.get_bookmark(),
-            "sort_by": "updated_at",
-            "sort_order": "ascending",
-        }
 
-
-class Prospects(Stream):
+class Prospects(UpdatedAtReplicationStream):
     stream_name = "prospects"
     data_key = "prospect"
     endpoint = "prospect"
-    replication_keys = ["updated_at"]
-    key_properties = ["id"]
+
     is_dynamic = False
 
-    def get_params(self):
-        return {
-            "updated_after": self.get_bookmark(),
-            "sort_by": "updated_at",
-            "sort_order": "ascending",
-        }
 
-
-class Opportunities(Stream):
+class Opportunities(UpdatedAtReplicationStream):
     stream_name = "opportunities"
     data_key = "opportunity"
     endpoint = "opportunity"
-    replication_keys = ["updated_at"]
-    key_properties = ["id"]
-    is_dynamic = False
 
-    def get_params(self):
-        return {
-            "updated_after": self.get_bookmark(),
-            "sort_by": "updated_at",
-            "sort_order": "ascending",
-        }
+    is_dynamic = False
 
 
 STREAM_OBJECTS = {
