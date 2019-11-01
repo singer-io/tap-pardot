@@ -38,7 +38,7 @@ def sync(client, config, state, catalog):
             stream_object.key_properties,
             stream_object.replication_keys,
         )
-        LOGGER.info("Starting discovery mode")
+
         LOGGER.info("Syncing stream: " + stream_id)
         records_synced = True
         with Transformer() as transformer:

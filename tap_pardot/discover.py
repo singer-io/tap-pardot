@@ -1,9 +1,12 @@
 import json
 import os
 
+import singer
 from singer import Catalog, metadata
 
 from .streams import STREAM_OBJECTS
+
+LOGGER = singer.get_logger()
 
 
 def _get_abs_path(path):
@@ -50,6 +53,7 @@ def _load_schemas(client):
 
 
 def discover(client):
+    LOGGER.info("Starting discovery mode")
     raw_schemas = _load_schemas(client)
     streams = []
 
