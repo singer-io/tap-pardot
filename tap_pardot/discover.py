@@ -34,9 +34,10 @@ def _load_schemas(client):
             schemas[file_raw] = json.load(file)
 
     for stream in schemas.keys():
-        if STREAM_OBJECTS[stream].is_dynamic:
+        stream_object = STREAM_OBJECTS[stream]
+        if stream_object.is_dynamic:
             # Client describe
-            schema_response = client.describe(stream)
+            schema_response = client.describe(stream_object.endpoint)
             # Parse Result into JSON Schema
             dynamic_schema_parts = _parse_schema_description(schema_response)
             # Add to schemas
