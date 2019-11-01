@@ -9,6 +9,7 @@ class Stream:
     endpoint = None
     key_properties = ["id"]
     replication_keys = []
+    replication_method = None
     is_dynamic = False
 
     client = None
@@ -69,6 +70,7 @@ class Stream:
 
 class IdReplicationStream(Stream):
     replication_keys = ["id"]
+    replication_method = "INCREMENTAL"
 
     def get_default_start(self):
         return 0
@@ -77,11 +79,14 @@ class IdReplicationStream(Stream):
         return {
             "created_after": self.config["start_date"],
             "id_greater_than": self.get_bookmark(),
+            "sort_by": "id",
+            "sort_order": "ascending",
         }
 
 
 class UpdatedAtReplicationStream(Stream):
     replication_keys = ["updated_at"]
+    replication_method = "INCREMENTAL"
 
     def get_params(self):
         return {

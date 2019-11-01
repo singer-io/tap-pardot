@@ -68,6 +68,7 @@ def discover(client):
                 schema=schema,
                 key_properties=stream.key_properties,
                 valid_replication_keys=stream.replication_keys,
+                replication_method=stream.replication_method,
             ),
             "key_properties": stream.key_properties,
         }
