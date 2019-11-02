@@ -1,5 +1,5 @@
 import singer
-from singer import Transformer, metadata
+from singer import Transformer, metadata, utils
 
 from .streams import STREAM_OBJECTS
 
@@ -41,9 +41,13 @@ def sync(client, config, state, catalog):
 
         LOGGER.info("Syncing stream: " + stream_id)
         records_synced = True
+
+        start = utils.strftime(utils.now())
+
         with Transformer() as transformer:
             while records_synced:
                 records_synced = sync_page(
                     stream_id, stream_object, transformer, stream
                 )
-    return
+
+            stream_object.post_sync_update_bookmark(start_time=start)

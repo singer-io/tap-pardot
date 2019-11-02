@@ -41,6 +41,9 @@ class Stream:
         )
         singer.write_state(self.state)
 
+    def post_sync_update_bookmark(self, *args, **kwargs):
+        """Function to update the bookmark after a full sync is finished."""
+
     def sync(self):
         data = self.client.get(self.endpoint, **self.get_params())
 
@@ -96,6 +99,58 @@ class UpdatedAtReplicationStream(Stream):
         }
 
 
+class UpdatedAtSortByIdReplicationStream(Stream):
+    replication_keys = []
+    replication_method = "INCREMENTAL"
+
+    def post_sync_update_bookmark(self, *args, **kwargs):
+        self.update_bookmark("updated", kwargs["start_time"])
+        self.update_bookmark("id", 0)
+
+    def get_params(self):
+        return {
+            "id_greater_than": self.get_bookmark("id") or 0,
+            "updated_after": self.get_bookmark("updated") or self.config["start_date"],
+            "sort_by": "id",
+            "sort_order": "ascending",
+        }
+
+    def get_bookmark(self, bookmark_key=None):
+        return singer.bookmarks.get_bookmark(self.state, self.stream_name, bookmark_key)
+
+    def update_bookmark(self, bookmark_key, bookmark_value):
+        singer.bookmarks.write_bookmark(
+            self.state, self.stream_name, bookmark_key, bookmark_value
+        )
+        singer.write_state(self.state)
+
+    def sync(self):
+        data = self.client.get(self.endpoint, **self.get_params())
+
+        if data["result"] is None or data["result"].get("total_results") == 0:
+            return
+
+        last_bookmark_value = None
+
+        records = data["result"][self.data_key]
+        if isinstance(records, dict):
+            records = [records]
+
+        for rec in records:
+            current_bookmark_value = rec["id"]
+            if last_bookmark_value is None:
+                last_bookmark_value = current_bookmark_value
+
+            if current_bookmark_value < last_bookmark_value:
+                raise Exception(
+                    "Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(
+                        current_bookmark_value, last_bookmark_value
+                    )
+                )
+            self.update_bookmark("id", current_bookmark_value)
+            yield rec
+
+
 class EmailClicks(IdReplicationStream):
     stream_name = "email_clicks"
     data_key = "emailClick"
@@ -140,6 +195,14 @@ class Users(UpdatedAtReplicationStream):
     stream_name = "users"
     data_key = "user"
     endpoint = "user"
+
+    is_dynamic = False
+
+
+class Campaigns(UpdatedAtSortByIdReplicationStream):
+    stream_name = "campaigns"
+    data_key = "campaign"
+    endpoint = "campaign"
 
     is_dynamic = False
 
