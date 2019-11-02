@@ -71,6 +71,25 @@ class Stream:
             yield rec
 
 
+class FullTableReplicationStream(Stream):
+    replication_keys = ["id"]
+    replication_method = "FULL_TABLE"
+
+    def get_default_start(self):
+        return 0
+
+    def post_sync_update_bookmark(self, *args, **kwargs):
+        self.update_bookmark(0)
+
+    def get_params(self):
+        return {
+            "created_after": self.config["start_date"],
+            "id_greater_than": self.get_bookmark(),
+            "sort_by": "id",
+            "sort_order": "ascending",
+        }
+
+
 class IdReplicationStream(Stream):
     replication_keys = ["id"]
     replication_method = "INCREMENTAL"
@@ -183,7 +202,7 @@ class Prospects(UpdatedAtReplicationStream):
     is_dynamic = False
 
 
-class Opportunities(UpdatedAtReplicationStream):
+class Opportunities(FullTableReplicationStream):
     stream_name = "opportunities"
     data_key = "opportunity"
     endpoint = "opportunity"
@@ -191,7 +210,7 @@ class Opportunities(UpdatedAtReplicationStream):
     is_dynamic = False
 
 
-class Users(UpdatedAtReplicationStream):
+class Users(FullTableReplicationStream):
     stream_name = "users"
     data_key = "user"
     endpoint = "user"
