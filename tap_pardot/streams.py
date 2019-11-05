@@ -16,6 +16,8 @@ class Stream:
     config = None
     state = None
 
+    _last_value = None
+
     def __init__(self, client, config, state):
         self.client = client
         self.state = state
@@ -41,34 +43,56 @@ class Stream:
         )
         singer.write_state(self.state)
 
-    def post_sync_update_bookmark(self, *args, **kwargs):
-        """Function to update the bookmark after a full sync is finished."""
+    def pre_sync(self):
+        """Function to run arbitrary code before a full sync starts."""
 
-    def sync(self):
+    def post_sync(self):
+        """Function to run arbitrary code after a full sync completes."""
+
+    def get_records(self):
         data = self.client.get(self.endpoint, **self.get_params())
 
         if data["result"] is None or data["result"].get("total_results") == 0:
-            return
-
-        last_bookmark_value = None
+            return []
 
         records = data["result"][self.data_key]
         if isinstance(records, dict):
             records = [records]
+        return records
 
-        for rec in records:
-            current_bookmark_value = rec[self.replication_keys[0]]
-            if last_bookmark_value is None:
-                last_bookmark_value = current_bookmark_value
+    def check_order(self, current_value):
+        if self._last_value is None:
+            self._last_value = current_value
 
-            if current_bookmark_value < last_bookmark_value:
-                raise Exception(
-                    "Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(
-                        current_bookmark_value, last_bookmark_value
-                    )
+        if current_value < self._last_value:
+            raise Exception(
+                "Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(
+                    current_value, self._last_value
                 )
+            )
+
+        self._last_value = current_value
+
+    def sync_page(self):
+        for rec in self.get_records():
+            current_bookmark_value = rec[self.replication_keys[0]]
+            self.check_order(current_bookmark_value)
             self.update_bookmark(current_bookmark_value)
             yield rec
+
+    def sync(self):
+        self.pre_sync()
+
+        records_synced = 0
+        last_records_synced = -1
+
+        while records_synced != last_records_synced:
+            last_records_synced = records_synced
+            for rec in self.sync_page():
+                records_synced += 1
+                yield rec
+
+        self.post_sync()
 
 
 class FullTableReplicationStream(Stream):

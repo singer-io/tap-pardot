@@ -6,21 +6,6 @@ from .streams import STREAM_OBJECTS
 LOGGER = singer.get_logger()
 
 
-def sync_page(stream_id, stream_object, transformer, catalog_entry):
-    records_synced = 0
-    for rec in stream_object.sync():
-        singer.write_record(
-            stream_id,
-            transformer.transform(
-                rec,
-                catalog_entry.schema.to_dict(),
-                metadata.to_map(catalog_entry.metadata),
-            ),
-        )
-        records_synced += 1
-    return bool(records_synced)
-
-
 def sync(client, config, state, catalog):
     selected_streams = catalog.get_selected_streams(state)
 
@@ -40,14 +25,12 @@ def sync(client, config, state, catalog):
         )
 
         LOGGER.info("Syncing stream: " + stream_id)
-        records_synced = True
-
-        start = utils.strftime(utils.now())
 
         with Transformer() as transformer:
-            while records_synced:
-                records_synced = sync_page(
-                    stream_id, stream_object, transformer, stream
+            for rec in stream_object.sync():
+                singer.write_record(
+                    stream_id,
+                    transformer.transform(
+                        rec, stream.schema.to_dict(), metadata.to_map(stream.metadata),
+                    ),
                 )
-
-            stream_object.post_sync_update_bookmark(start_time=start)
