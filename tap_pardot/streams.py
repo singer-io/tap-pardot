@@ -95,25 +95,6 @@ class Stream:
         self.post_sync()
 
 
-class FullTableReplicationStream(Stream):
-    replication_keys = ["id"]
-    replication_method = "FULL_TABLE"
-
-    def get_default_start(self):
-        return 0
-
-    def post_sync_update_bookmark(self, *args, **kwargs):
-        self.update_bookmark(0)
-
-    def get_params(self):
-        return {
-            "created_after": self.config["start_date"],
-            "id_greater_than": self.get_bookmark(),
-            "sort_by": "id",
-            "sort_order": "ascending",
-        }
-
-
 class IdReplicationStream(Stream):
     replication_keys = ["id"]
     replication_method = "INCREMENTAL"
@@ -142,23 +123,12 @@ class UpdatedAtReplicationStream(Stream):
         }
 
 
-class UpdatedAtSortByIdReplicationStream(Stream):
-    replication_keys = []
-    replication_method = "INCREMENTAL"
+class ComplexBookmarkStream(Stream):
+    def clear_bookmark(self, bookmark_key):
+        singer.bookmarks.clear_bookmark(self.state, self.stream_name, bookmark_key)
+        singer.write_state(self.state)
 
-    def post_sync_update_bookmark(self, *args, **kwargs):
-        self.update_bookmark("updated", kwargs["start_time"])
-        self.update_bookmark("id", 0)
-
-    def get_params(self):
-        return {
-            "id_greater_than": self.get_bookmark("id") or 0,
-            "updated_after": self.get_bookmark("updated") or self.config["start_date"],
-            "sort_by": "id",
-            "sort_order": "ascending",
-        }
-
-    def get_bookmark(self, bookmark_key=None):
+    def get_bookmark(self, bookmark_key):
         return singer.bookmarks.get_bookmark(self.state, self.stream_name, bookmark_key)
 
     def update_bookmark(self, bookmark_key, bookmark_value):
@@ -167,30 +137,76 @@ class UpdatedAtSortByIdReplicationStream(Stream):
         )
         singer.write_state(self.state)
 
-    def sync(self):
-        data = self.client.get(self.endpoint, **self.get_params())
+    def sync_page(self):
+        raise NotImplementedError("ComplexBookmarkStreams need a custom sync method.")
 
-        if data["result"] is None or data["result"].get("total_results") == 0:
-            return
 
-        last_bookmark_value = None
+class NoUpdatedAtSortingStream(ComplexBookmarkStream):
+    replication_keys = ["id", "updated_at"]
+    replication_method = "INCREMENTAL"
 
-        records = data["result"][self.data_key]
-        if isinstance(records, dict):
-            records = [records]
+    max_updated_at = None
 
-        for rec in records:
-            current_bookmark_value = rec["id"]
-            if last_bookmark_value is None:
-                last_bookmark_value = current_bookmark_value
+    def post_sync(self):
+        self.clear_bookmark("id")
+        self.update_bookmark("updated_at", self.max_updated_at)
 
-            if current_bookmark_value < last_bookmark_value:
-                raise Exception(
-                    "Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(
-                        current_bookmark_value, last_bookmark_value
-                    )
-                )
-            self.update_bookmark("id", current_bookmark_value)
+    def get_params(self):
+        return {
+            "created_after": self.config["start_date"],
+            "id_greater_than": self.get_bookmark("id") or 0,
+            "sort_by": "id",
+            "sort_order": "ascending",
+        }
+
+    def sync_page(self):
+        last_updated_at = self.get_bookmark("updated_at") or self.config["start_date"]
+        self.max_updated_at = last_updated_at
+
+        for rec in self.get_records():
+            current_id = rec["id"]
+
+            if rec["updated_at"] < last_updated_at:
+                continue
+
+            self.check_order(current_id)
+            self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
+            self.update_bookmark("id", current_id)
+            yield rec
+
+
+class UpdatedAtSortByIdReplicationStream(ComplexBookmarkStream):
+    replication_keys = ["id"]
+    replication_method = "INCREMENTAL"
+
+    start_time = None
+
+    def pre_sync(self):
+        self.start_time = self.get_bookmark("sync_start_time")
+
+        if self.start_time is None:
+            self.start_time = singer.utils.strftime(singer.utils.now())
+            self.update_bookmark("sync_start_time", self.start_time)
+
+    def post_sync(self):
+        self.clear_bookmark("sync_start_time")
+        self.clear_bookmark("id")
+        self.update_bookmark("last_updated", self.start_time)
+
+    def get_params(self):
+        return {
+            "id_greater_than": self.get_bookmark("id") or 0,
+            "updated_after": self.get_bookmark("last_updated")
+            or self.config["start_date"],
+            "sort_by": "id",
+            "sort_order": "ascending",
+        }
+
+    def sync_page(self):
+        for rec in self.get_records():
+            current_id = rec["id"]
+            self.check_order(current_id)
+            self.update_bookmark("id", current_id)
             yield rec
 
 
@@ -226,7 +242,7 @@ class Prospects(UpdatedAtReplicationStream):
     is_dynamic = False
 
 
-class Opportunities(FullTableReplicationStream):
+class Opportunities(NoUpdatedAtSortingStream):
     stream_name = "opportunities"
     data_key = "opportunity"
     endpoint = "opportunity"
@@ -234,7 +250,7 @@ class Opportunities(FullTableReplicationStream):
     is_dynamic = False
 
 
-class Users(FullTableReplicationStream):
+class Users(NoUpdatedAtSortingStream):
     stream_name = "users"
     data_key = "user"
     endpoint = "user"
