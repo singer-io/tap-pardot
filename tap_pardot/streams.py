@@ -16,7 +16,7 @@ class Stream:
     config = None
     state = None
 
-    _last_value = None
+    _last_bookmark_value = None
 
     def __init__(self, client, config, state):
         self.client = client
@@ -60,18 +60,18 @@ class Stream:
             records = [records]
         return records
 
-    def check_order(self, current_value):
-        if self._last_value is None:
-            self._last_value = current_value
+    def check_order(self, current_bookmark_value):
+        if self._last_bookmark_value is None:
+            self._last_bookmark_value = current_bookmark_value
 
-        if current_value < self._last_value:
+        if current_bookmark_value < self._last_bookmark_value:
             raise Exception(
                 "Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(
-                    current_value, self._last_value
+                    current_bookmark_value, self._last_bookmark_value
                 )
             )
 
-        self._last_value = current_value
+        self._last_bookmark_value = current_bookmark_value
 
     def sync_page(self):
         for rec in self.get_records():
