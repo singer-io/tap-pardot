@@ -307,6 +307,14 @@ class Users(NoUpdatedAtSortingStream):
     is_dynamic = False
 
 
+class ListMemberships(NoUpdatedAtSortingStream):
+    stream_name = "list_memberships"
+    data_key = "list_membership"
+    endpoint = "listMembership"
+
+    is_dynamic = False
+
+
 class Campaigns(UpdatedAtSortByIdReplicationStream):
     stream_name = "campaigns"
     data_key = "campaign"
