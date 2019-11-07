@@ -76,8 +76,8 @@ class Client:
             )
         }
 
-    def _make_request(self, url, headers=None, params=None):
-        response = requests.get(url, headers=headers, params=params)
+    def _make_request(self, method, url, headers=None, params=None):
+        response = requests.request(method, url, headers=headers, params=params)
         response.raise_for_status()
         content = response.json()
         error_message = content.get("err")
@@ -90,7 +90,7 @@ class Client:
             if error_code == 1:
                 LOGGER.info("API key or user key expired -- Reauthenticating once")
                 self.login()
-                response = requests.get(url, headers=headers, params=params)
+                response = requests.request(method, url, headers=headers, params=params)
                 content = response.json()
 
         return content
@@ -113,7 +113,7 @@ class Client:
             url,
             params,
         )
-        content = self._make_request(url, headers, params)
+        content = self._make_request("get", url, headers, params)
 
         error_message = content.get("err")
         if error_message:
@@ -129,13 +129,7 @@ class Client:
 
         return content
 
-    @backoff.on_exception(
-        backoff.expo,
-        (PardotException),
-        giveup=is_not_retryable_pardot_exception,
-        jitter=None,
-    )
-    def get(self, endpoint, format_params=None, **kwargs):
+    def _fetch(self, method, endpoint, format_params, **kwargs):
         # Not worrying about a backoff pattern for the spike
         # Error code 1 indicates a bad api_key or user_key
         # If we get error code 1 then re-authenticate login
@@ -149,12 +143,13 @@ class Client:
         params = {"format": "json", "output": "bulk", **kwargs}
 
         LOGGER.info(
-            "%s - Making request to GET endpoint %s, with params %s",
+            "%s - Making request to %s endpoint %s, with params %s",
             endpoint,
+            method.upper(),
             url,
             params,
         )
-        content = self._make_request(url, headers, params)
+        content = self._make_request(method, url, headers, params)
 
         error_message = content.get("err")
         if error_message:
@@ -169,3 +164,21 @@ class Client:
             )
 
         return content
+
+    @backoff.on_exception(
+        backoff.expo,
+        (PardotException),
+        giveup=is_not_retryable_pardot_exception,
+        jitter=None,
+    )
+    def get(self, endpoint, format_params=None, **kwargs):
+        return self._fetch("get", endpoint, format_params, **kwargs)
+
+    @backoff.on_exception(
+        backoff.expo,
+        (PardotException),
+        giveup=is_not_retryable_pardot_exception,
+        jitter=None,
+    )
+    def post(self, endpoint, format_params=None, **kwargs):
+        return self._fetch("post", endpoint, format_params, **kwargs)
