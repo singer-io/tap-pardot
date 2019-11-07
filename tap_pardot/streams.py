@@ -96,6 +96,15 @@ class Stream:
 
 
 class IdReplicationStream(Stream):
+    """
+    Streams where records are immutable and can only be sorted by id.
+
+    Syncing mechanism:
+
+    - use bookmark to keep track of the id
+    - sync records since the last bookmarked id
+    """
+
     replication_keys = ["id"]
     replication_method = "INCREMENTAL"
 
@@ -112,6 +121,16 @@ class IdReplicationStream(Stream):
 
 
 class UpdatedAtReplicationStream(Stream):
+    """
+    Streams where records are mutable, can be sorted by updated_at, and return
+    updated_at.
+
+    Syncing mechanism:
+
+    - use bookmark to keep track of last updated_at
+    - sync records since the last bookmarked updated_at
+    """
+
     replication_keys = ["updated_at"]
     replication_method = "INCREMENTAL"
 
@@ -124,6 +143,8 @@ class UpdatedAtReplicationStream(Stream):
 
 
 class ComplexBookmarkStream(Stream):
+    """Streams that need to keep track of more than 1 bookmark."""
+
     def clear_bookmark(self, bookmark_key):
         singer.bookmarks.clear_bookmark(self.state, self.stream_name, bookmark_key)
         singer.write_state(self.state)
@@ -142,6 +163,18 @@ class ComplexBookmarkStream(Stream):
 
 
 class NoUpdatedAtSortingStream(ComplexBookmarkStream):
+    """
+    Streams that can't sort by updated_at but have an updated_at field returned.
+
+    Syncing mechanism:
+
+    - get last updated_at bookmark
+    - start full sync by id, starting at 0 and using id bookmark for paging
+    - only emit records that have been updated since last sync
+    - while iterating thorugh records, keep track of the max updated_at
+    - when sync is finished, update the updated_at bookmark with max_updated_at
+    """
+
     replication_keys = ["id", "updated_at"]
     replication_method = "INCREMENTAL"
 
@@ -176,6 +209,22 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
 
 
 class UpdatedAtSortByIdReplicationStream(ComplexBookmarkStream):
+    """
+    Streams that don't return an updated_at field but can be queried using
+    updated_after.
+
+    Syncing mechanism:
+
+    - when a full sync starts, store current time in sync_start_time bookmark
+    - if that bookmark exists, then we haven't finished a full sync and it'll
+      pick up from where it left off.
+    - use a last_updated bookmark to sync items updated_after last sync
+    - start each full sync with id = 0 and sync all newly updated records paging
+      by an id bookmark
+    - when ful sync finishes, delete teh sync_start_time and id bookmarks and update
+      last_updated bookmark to the sync_start_time
+    """
+
     replication_keys = ["id"]
     replication_method = "INCREMENTAL"
 
