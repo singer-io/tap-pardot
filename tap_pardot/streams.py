@@ -263,6 +263,73 @@ class UpdatedAtSortByIdReplicationStream(ComplexBookmarkStream):
             yield rec
 
 
+class ChildStream(ComplexBookmarkStream):
+    parent_class = None
+    parent_id_param = None
+
+    def pre_sync(self):
+        self.parent_bookmark = self.get_bookmark("parent_bookmark")
+
+        if self.parent_bookmark is None:
+            self.parent_bookmark = {}
+            self.update_bookmark("parent_bookmark", self.parent_bookmark)
+
+    def post_sync(self):
+        self.clear_bookmark("parent_bookmark")
+
+    def get_params(self):
+        return {"offset": self.get_bookmark("offset") or 0}
+
+    def get_records(self, parent_ids):
+
+        params = {self.parent_id_param: parent_ids, **self.get_params()}
+        data = self.client.post(self.endpoint, **params)
+        self.update_bookmark("offset", params["offset"] + 200)
+
+        if data["result"] is None or data["result"].get("total_results") == 0:
+            return []
+
+        records = data["result"][self.data_key]
+        if isinstance(records, dict):
+            records = [records]
+
+        return records
+
+    def sync_page(self, parent_ids):
+        for rec in self.get_records(parent_ids):
+            # self.check_order(current_bookmark_value)
+            yield rec
+
+    def get_parent_ids(self, parent):
+        while True:
+            parent_ids = [rec["id"] for rec in parent.sync_page()]
+            if len(parent_ids):
+                yield parent_ids
+                self.update_bookmark("parent_bookmark", self.parent_bookmark)
+            else:
+                break
+
+    def sync(self):
+        self.pre_sync()
+
+        parent = self.parent_class(
+            self.client, self.config, self.parent_bookmark, emit=False
+        )
+
+        for parent_ids in self.get_parent_ids(parent):
+            records_synced = 0
+            last_records_synced = -1
+
+            while records_synced != last_records_synced:
+                last_records_synced = records_synced
+                for rec in self.sync_page(parent_ids):
+                    records_synced += 1
+                    yield rec
+            self.clear_bookmark("offset")
+
+        self.post_sync()
+
+
 class EmailClicks(IdReplicationStream):
     stream_name = "email_clicks"
     data_key = "emailClick"
@@ -317,6 +384,17 @@ class Visitors(UpdatedAtReplicationStream):
     endpoint = "visitor"
 
     is_dynamic = False
+
+
+class Visits(ChildStream):
+    stream_name = "visits"
+    data_key = "visit"
+    endpoint = "visit"
+
+    is_dynamic = False
+
+    parent_class = Visitors
+    parent_id_param = "visitor_ids"
 
 
 class Lists(UpdatedAtReplicationStream):
