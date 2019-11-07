@@ -18,10 +18,11 @@ class Stream:
 
     _last_bookmark_value = None
 
-    def __init__(self, client, config, state):
+    def __init__(self, client, config, state, emit=True):
         self.client = client
         self.state = state
         self.config = config
+        self.emit = emit
 
     def get_default_start(self):
         return self.config["start_date"]
@@ -41,7 +42,8 @@ class Stream:
         singer.bookmarks.write_bookmark(
             self.state, self.stream_name, self.replication_keys[0], bookmark_value
         )
-        singer.write_state(self.state)
+        if self.emit:
+            singer.write_state(self.state)
 
     def pre_sync(self):
         """Function to run arbitrary code before a full sync starts."""
@@ -147,7 +149,8 @@ class ComplexBookmarkStream(Stream):
 
     def clear_bookmark(self, bookmark_key):
         singer.bookmarks.clear_bookmark(self.state, self.stream_name, bookmark_key)
-        singer.write_state(self.state)
+        if self.emit:
+            singer.write_state(self.state)
 
     def get_bookmark(self, bookmark_key):
         return singer.bookmarks.get_bookmark(self.state, self.stream_name, bookmark_key)
@@ -156,7 +159,8 @@ class ComplexBookmarkStream(Stream):
         singer.bookmarks.write_bookmark(
             self.state, self.stream_name, bookmark_key, bookmark_value
         )
-        singer.write_state(self.state)
+        if self.emit:
+            singer.write_state(self.state)
 
     def sync_page(self):
         raise NotImplementedError("ComplexBookmarkStreams need a custom sync method.")
