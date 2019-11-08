@@ -187,6 +187,7 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
     def post_sync(self):
         self.clear_bookmark("id")
         self.update_bookmark("updated_at", self.max_updated_at)
+        super(NoUpdatedAtSortingStream, self).post_sync()
 
     def get_params(self):
         return {
@@ -240,11 +241,13 @@ class UpdatedAtSortByIdReplicationStream(ComplexBookmarkStream):
         if self.start_time is None:
             self.start_time = singer.utils.strftime(singer.utils.now())
             self.update_bookmark("sync_start_time", self.start_time)
+        super(UpdatedAtSortByIdReplicationStream, self).pre_sync()
 
     def post_sync(self):
         self.clear_bookmark("sync_start_time")
         self.clear_bookmark("id")
         self.update_bookmark("last_updated", self.start_time)
+        super(UpdatedAtSortByIdReplicationStream, self).post_sync()
 
     def get_params(self):
         return {
@@ -273,9 +276,11 @@ class ChildStream(ComplexBookmarkStream):
         if self.parent_bookmark is None:
             self.parent_bookmark = {}
             self.update_bookmark("parent_bookmark", self.parent_bookmark)
+        super(ChildStream, self).pre_sync()
 
     def post_sync(self):
         self.clear_bookmark("parent_bookmark")
+        super(ChildStream, self).post_sync()
 
     def get_params(self):
         return {"offset": self.get_bookmark("offset") or 0}
@@ -384,7 +389,7 @@ class Visitors(UpdatedAtReplicationStream):
     is_dynamic = False
 
 
-class Visits(ChildStream):
+class Visits(ChildStream, NoUpdatedAtSortingStream):
     stream_name = "visits"
     data_key = "visit"
     endpoint = "visit"
@@ -400,8 +405,14 @@ class Visits(ChildStream):
             record["visitor_page_views"]["visitor_page_view"] = [page_views]
 
     def sync_page(self, parent_ids):
+        last_updated_at = self.get_bookmark("updated_at") or self.config["start_date"]
+        self.max_updated_at = last_updated_at
+
         for rec in self.get_records(parent_ids):
+            if rec["updated_at"] < last_updated_at:
+                continue
             self.fix_page_views(rec)
+            self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
             yield rec
 
 
