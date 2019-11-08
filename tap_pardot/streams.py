@@ -394,6 +394,16 @@ class Visits(ChildStream):
     parent_class = Visitors
     parent_id_param = "visitor_ids"
 
+    def fix_page_views(self, record):
+        page_views = record["visitor_page_views"]["visitor_page_view"]
+        if isinstance(page_views, dict):
+            record["visitor_page_views"]["visitor_page_view"] = [page_views]
+
+    def sync_page(self, parent_ids):
+        for rec in self.get_records(parent_ids):
+            self.fix_page_views(rec)
+            yield rec
+
 
 class Lists(UpdatedAtReplicationStream):
     stream_name = "lists"
