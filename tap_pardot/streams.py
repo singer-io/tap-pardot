@@ -204,7 +204,7 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
         for rec in self.get_records():
             current_id = rec["id"]
 
-            if rec["updated_at"] < last_updated_at:
+            if rec["updated_at"] <= last_updated_at:
                 continue
 
             self.check_order(current_id)
@@ -414,7 +414,7 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
         self.max_updated_at = last_updated_at
 
         for rec in self.get_records(parent_ids):
-            if rec["updated_at"] < last_updated_at:
+            if rec["updated_at"] <= last_updated_at:
                 continue
             self.fix_page_views(rec)
             self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
@@ -474,7 +474,7 @@ class ListMemberships(ChildStream, NoUpdatedAtSortingStream):
         self.max_updated_at = last_updated_at
 
         for rec in self.get_records(parent_id):
-            if rec["updated_at"] < last_updated_at:
+            if rec["updated_at"] <= last_updated_at:
                 continue
             self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
             self.update_bookmark("id", rec["id"])
