@@ -79,8 +79,17 @@ class Client:
             )
         }
 
-    def _make_request(self, method, url, headers=None, params=None):
-        response = requests.request(method, url, headers=headers, params=params)
+    def _make_request(self, method, url, params=None):
+        LOGGER.info(
+            "%s - Making request to %s endpoint %s, with params %s",
+            url,
+            method.upper(),
+            url,
+            params,
+        )
+        response = requests.request(
+            method, url, headers=self._get_auth_header(), params=params
+        )
         response.raise_for_status()
         content = response.json()
         error_message = content.get("err")
@@ -93,7 +102,9 @@ class Client:
             if error_code == 1:
                 LOGGER.info("API key or user key expired -- Reauthenticating once")
                 self.login()
-                response = requests.request(method, url, headers=headers, params=params)
+                response = requests.request(
+                    method, url, headers=self._get_auth_header(), params=params
+                )
                 content = response.json()
 
         return content
@@ -107,16 +118,9 @@ class Client:
     def describe(self, endpoint, **kwargs):
         url = (ENDPOINT_BASE + self.describe_url).format(endpoint, self.api_version)
 
-        headers = self._get_auth_header()
         params = {"format": "json", "output": "bulk", **kwargs}
 
-        LOGGER.info(
-            "%s - Making request to GET endpoint %s, with params %s",
-            endpoint,
-            url,
-            params,
-        )
-        content = self._make_request("get", url, headers, params)
+        content = self._make_request("get", url, params)
 
         self._check_error(content, "describing endpoint")
 
@@ -138,17 +142,9 @@ class Client:
             base_formatting.extend(format_params)
         url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
 
-        headers = self._get_auth_header()
         params = {"format": "json", "output": "bulk", **kwargs}
 
-        LOGGER.info(
-            "%s - Making request to %s endpoint %s, with params %s",
-            endpoint,
-            method.upper(),
-            url,
-            params,
-        )
-        content = self._make_request(method, url, headers, params)
+        content = self._make_request(method, url, params)
 
         self._check_error(content, "retrieving endpoint")
 
