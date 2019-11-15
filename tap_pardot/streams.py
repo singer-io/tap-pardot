@@ -183,6 +183,14 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
     replication_method = "INCREMENTAL"
 
     max_updated_at = None
+    last_updated_at = None
+
+    def __init__(self, *args, **kwargs):
+        super(NoUpdatedAtSortingStream, self).__init__(*args, **kwargs)
+        self.last_updated_at = (
+            self.get_bookmark("updated_at") or self.config["start_date"]
+        )
+        self.max_updated_at = self.last_updated_at
 
     def post_sync(self):
         self.clear_bookmark("id")
@@ -198,13 +206,9 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
         }
 
     def sync_page(self):
-        last_updated_at = self.get_bookmark("updated_at") or self.config["start_date"]
-        self.max_updated_at = last_updated_at
-
         for rec in self.get_records():
             current_id = rec["id"]
-
-            if rec["updated_at"] <= last_updated_at:
+            if rec["updated_at"] <= self.last_updated_at:
                 continue
 
             self.check_order(current_id)
@@ -410,11 +414,8 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
 
         This is handled in ChildStream base class.
         """
-        last_updated_at = self.get_bookmark("updated_at") or self.config["start_date"]
-        self.max_updated_at = last_updated_at
-
         for rec in self.get_records(parent_ids):
-            if rec["updated_at"] <= last_updated_at:
+            if rec["updated_at"] <= self.last_updated_at:
                 continue
             self.fix_page_views(rec)
             self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
@@ -470,11 +471,8 @@ class ListMemberships(ChildStream, NoUpdatedAtSortingStream):
     def sync_page(self, parent_id):
         """ListMemberships use id to paginate through, so we override ChildStream
         behavior."""
-        last_updated_at = self.get_bookmark("updated_at") or self.config["start_date"]
-        self.max_updated_at = last_updated_at
-
         for rec in self.get_records(parent_id):
-            if rec["updated_at"] <= last_updated_at:
+            if rec["updated_at"] <= self.last_updated_at:
                 continue
             self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
             self.update_bookmark("id", rec["id"])
