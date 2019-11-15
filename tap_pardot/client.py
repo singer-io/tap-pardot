@@ -54,20 +54,23 @@ class Client:
 
         content = response.json()
 
+        self._check_error(content, "authenticating")
+
+        self.api_version = content.get("version") or "3"
+        self.api_key = content["api_key"]
+
+    def _check_error(self, content, activity):
         error_message = content.get("err")
         if error_message:
             error_code = content["@attributes"][
                 "err_code"
             ]  # E.g., "15" for login failed
             raise PardotException(
-                "Pardot returned error code {} while authenticating. Message: {}".format(
-                    error_code, error_message
+                "Pardot returned error code {} while {}. Message: {}".format(
+                    error_code, activity, error_message
                 ),
                 content,
             )
-
-        self.api_version = content.get("version") or "3"
-        self.api_key = content["api_key"]
 
     def _get_auth_header(self):
         return {
@@ -115,20 +118,16 @@ class Client:
         )
         content = self._make_request("get", url, headers, params)
 
-        error_message = content.get("err")
-        if error_message:
-            error_code = content["@attributes"][
-                "err_code"
-            ]  # E.g., "15" for login failed
-            raise PardotException(
-                "{} - Pardot returned error code {} while describing endpoint. Message: {}".format(
-                    endpoint, error_code, error_message
-                ),
-                content,
-            )
+        self._check_error(content, "describing endpoint")
 
         return content
 
+    @backoff.on_exception(
+        backoff.expo,
+        (PardotException),
+        giveup=is_not_retryable_pardot_exception,
+        jitter=None,
+    )
     def _fetch(self, method, endpoint, format_params, **kwargs):
         # Not worrying about a backoff pattern for the spike
         # Error code 1 indicates a bad api_key or user_key
@@ -151,34 +150,12 @@ class Client:
         )
         content = self._make_request(method, url, headers, params)
 
-        error_message = content.get("err")
-        if error_message:
-            error_code = content["@attributes"][
-                "err_code"
-            ]  # E.g., "15" for login failed
-            raise PardotException(
-                "{} - Pardot returned error code {} while retreiving endpoint. Message: {}".format(
-                    endpoint, error_code, error_message
-                ),
-                content,
-            )
+        self._check_error(content, "retrieving endpoint")
 
         return content
 
-    @backoff.on_exception(
-        backoff.expo,
-        (PardotException),
-        giveup=is_not_retryable_pardot_exception,
-        jitter=None,
-    )
     def get(self, endpoint, format_params=None, **kwargs):
         return self._fetch("get", endpoint, format_params, **kwargs)
 
-    @backoff.on_exception(
-        backoff.expo,
-        (PardotException),
-        giveup=is_not_retryable_pardot_exception,
-        jitter=None,
-    )
     def post(self, endpoint, format_params=None, **kwargs):
         return self._fetch("post", endpoint, format_params, **kwargs)
