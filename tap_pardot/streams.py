@@ -147,13 +147,24 @@ class UpdatedAtReplicationStream(Stream):
 class ComplexBookmarkStream(Stream):
     """Streams that need to keep track of more than 1 bookmark."""
 
+    def get_default_start(self, key):
+        defaults = {
+            "updated_at": self.config["start_date"],
+            "last_updated": self.config["start_date"],
+            "id": 0,
+            "offset": 0,
+        }
+        return defaults.get(key)
+
     def clear_bookmark(self, bookmark_key):
         singer.bookmarks.clear_bookmark(self.state, self.stream_name, bookmark_key)
         if self.emit:
             singer.write_state(self.state)
 
     def get_bookmark(self, bookmark_key):
-        return singer.bookmarks.get_bookmark(self.state, self.stream_name, bookmark_key)
+        return singer.bookmarks.get_bookmark(
+            self.state, self.stream_name, bookmark_key
+        ) or self.get_default_start(bookmark_key)
 
     def update_bookmark(self, bookmark_key, bookmark_value):
         singer.bookmarks.write_bookmark(
@@ -187,9 +198,7 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
 
     def __init__(self, *args, **kwargs):
         super(NoUpdatedAtSortingStream, self).__init__(*args, **kwargs)
-        self.last_updated_at = (
-            self.get_bookmark("updated_at") or self.config["start_date"]
-        )
+        self.last_updated_at = self.get_bookmark("updated_at")
         self.max_updated_at = self.last_updated_at
 
     def post_sync(self):
@@ -200,7 +209,7 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
     def get_params(self):
         return {
             "created_after": self.config["start_date"],
-            "id_greater_than": self.get_bookmark("id") or 0,
+            "id_greater_than": self.get_bookmark("id"),
             "sort_by": "id",
             "sort_order": "ascending",
         }
@@ -255,9 +264,8 @@ class UpdatedAtSortByIdReplicationStream(ComplexBookmarkStream):
 
     def get_params(self):
         return {
-            "id_greater_than": self.get_bookmark("id") or 0,
-            "updated_after": self.get_bookmark("last_updated")
-            or self.config["start_date"],
+            "id_greater_than": self.get_bookmark("id"),
+            "updated_after": self.get_bookmark("last_updated"),
             "sort_by": "id",
             "sort_order": "ascending",
         }
@@ -287,7 +295,7 @@ class ChildStream(ComplexBookmarkStream):
         super(ChildStream, self).post_sync()
 
     def get_params(self):
-        return {"offset": self.get_bookmark("offset") or 0}
+        return {"offset": self.get_bookmark("offset")}
 
     def get_records(self, parent_ids):
         params = {self.parent_id_param: parent_ids, **self.get_params()}
