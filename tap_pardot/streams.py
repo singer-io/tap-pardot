@@ -288,7 +288,7 @@ class ChildStream(ComplexBookmarkStream):
     def get_records(self, parent_ids):
         params = {self.parent_id_param: parent_ids, **self.get_params()}
         data = self.client.post(self.endpoint, **params)
-        self.update_bookmark("offset", params["offset"] + 200)
+        self.update_bookmark("offset", params.get("offset", 0) + 200)
 
         if data["result"] is None or data["result"].get("total_results") == 0:
             return []
@@ -405,6 +405,11 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
             record["visitor_page_views"]["visitor_page_view"] = [page_views]
 
     def sync_page(self, parent_ids):
+        """
+        Visits uses offset to paginate through.
+
+        This is handled in ChildStream base class.
+        """
         last_updated_at = self.get_bookmark("updated_at") or self.config["start_date"]
         self.max_updated_at = last_updated_at
 
@@ -424,12 +429,56 @@ class Lists(UpdatedAtReplicationStream):
     is_dynamic = False
 
 
-class ListMemberships(NoUpdatedAtSortingStream):
+class ListMemberships(ChildStream, NoUpdatedAtSortingStream):
     stream_name = "list_memberships"
     data_key = "list_membership"
     endpoint = "listMembership"
 
     is_dynamic = False
+
+    parent_class = Lists
+    parent_id_param = "list_id"
+
+    replication_keys = ["id", "updated_at", "list_id"]
+    replication_method = "INCREMENTAL"
+
+    def get_params(self):
+        """ListMemberships use id to paginate through, so we override ChildStream
+        behavior."""
+        return {
+            # Even though we can't sort by updated_at, we can
+            # filter by updated_after
+            "updated_after": self.get_bookmark("updated_at")
+            or self.config["start_date"],
+            "id_greater_than": self.get_bookmark("id") or 0,
+            "sort_by": "id",
+            "sort_order": "ascending",
+        }
+
+    def get_parent_ids(self, parent):
+        """ListMemberships take only 1 parent id at a time."""
+        records_synced = 0
+        last_records_synced = -1
+
+        while records_synced != last_records_synced:
+            last_records_synced = records_synced
+            for rec in parent.sync_page():
+                records_synced += 1
+                yield rec["id"]
+                self.update_bookmark("parent_bookmark", self.parent_bookmark)
+
+    def sync_page(self, parent_id):
+        """ListMemberships use id to paginate through, so we override ChildStream
+        behavior."""
+        last_updated_at = self.get_bookmark("updated_at") or self.config["start_date"]
+        self.max_updated_at = last_updated_at
+
+        for rec in self.get_records(parent_id):
+            if rec["updated_at"] < last_updated_at:
+                continue
+            self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
+            self.update_bookmark("id", rec["id"])
+            yield rec
 
 
 class Campaigns(UpdatedAtSortByIdReplicationStream):
