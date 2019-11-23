@@ -62,9 +62,7 @@ class Client:
     def _check_error(self, content, activity):
         error_message = content.get("err")
         if error_message:
-            error_code = content["@attributes"][
-                "err_code"
-            ]  # E.g., "15" for login failed
+            error_code = content["@attributes"]["err_code"]
             raise PardotException(
                 "Pardot returned error code {} while {}. Message: {}".format(
                     error_code, activity, error_message
@@ -95,9 +93,11 @@ class Client:
         error_message = content.get("err")
 
         if error_message:
-            error_code = content["@attributes"][
-                "err_code"
-            ]  # Error code of 1 is an expired api_key or user_key
+            error_code = content["@attributes"]["err_code"]
+
+            # Error code 1 indicates a bad api_key or user_key
+            # If we get error code 1 then re-authenticate login
+            # http://developer.pardot.com/kb/error-codes-messages/#error-code-1
 
             if error_code == 1:
                 LOGGER.info("API key or user key expired -- Reauthenticating once")
@@ -133,10 +133,6 @@ class Client:
         jitter=None,
     )
     def _fetch(self, method, endpoint, format_params, **kwargs):
-        # Not worrying about a backoff pattern for the spike
-        # Error code 1 indicates a bad api_key or user_key
-        # If we get error code 1 then re-authenticate login
-        # http://developer.pardot.com/kb/error-codes-messages/#error-code-1
         base_formatting = [endpoint, self.api_version]
         if format_params:
             base_formatting.extend(format_params)
