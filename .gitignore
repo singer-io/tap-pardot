@@ -106,3 +106,8 @@ venv.bak/
 catalog.json
 config.json
 state.json
+
+*.vscode
+*out.json
+*Pipfile
+*Pipfile.lock

@@ -15,7 +15,6 @@ REQUIRED_CONFIG_KEYS = ["start_date", "email", "password", "user_key"]
 
 @utils.handle_top_exception(LOGGER)
 def main():
-
     # Parse command line arguments
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
 
