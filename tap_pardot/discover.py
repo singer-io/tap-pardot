@@ -13,19 +13,6 @@ def _get_abs_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), path)
 
 
-def _parse_schema_description(description):
-    subschemas = {}
-    for field in description["result"]["field"]:
-        # NB: Some fields have been observed to come through as objects.
-        #     This was seen on type of 'dropdown' and 'text' with a value
-        #     of either a string or integer, so these schemas are merged.
-        subschemas[field["@attributes"]["id"]] = {
-            "type": ["null", "string", "object"],
-            "properties": {"value": {"type": ["null", "integer", "string"]}},
-        }
-    return subschemas
-
-
 # Load schemas from schemas folder
 def _load_schemas(client):
     schemas = {}
@@ -39,14 +26,10 @@ def _load_schemas(client):
     for stream in schemas.keys():
         stream_object = STREAM_OBJECTS[stream]
         if stream_object.is_dynamic:
-            # Client describe
-            schema_response = client.describe(stream_object.endpoint)
-            # Parse Result into JSON Schema
-            dynamic_schema_parts = _parse_schema_description(schema_response)
             # Add to schemas
             schemas[stream] = {
                 "type": "object",
-                "properties": {**schemas[stream]["properties"], **dynamic_schema_parts},
+                "properties": {**schemas[stream]["properties"]},
             }
 
     return schemas
