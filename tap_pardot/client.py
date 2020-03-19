@@ -2,6 +2,9 @@ import backoff
 import requests
 import singer
 
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
 LOGGER = singer.get_logger()
 
 AUTH_URL = "https://pi.pardot.com/api/login/version/3"
@@ -85,7 +88,13 @@ class Client:
             url,
             params,
         )
-        response = requests.request(
+
+        request_session = requests.Session()
+        retries = Retry(total=100, backoff_factor=1, status_forcelist=[502, 503, 504])
+        request_session.mount("http://", HTTPAdapter(max_retries=retries))
+        request_session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        response = request_session.request(
             method, url, headers=self._get_auth_header(), params=params
         )
         response.raise_for_status()
