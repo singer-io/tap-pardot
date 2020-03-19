@@ -60,7 +60,16 @@ class Stream:
         records = data["result"][self.data_key]
         if isinstance(records, dict):
             records = [records]
-        return records
+
+        return map(self.flatten_record, records)
+
+    def flatten_record(self, record):
+        """ In case when data comes as a dict with 'value' key only.
+        """
+        for key, value in record.items():
+            if isinstance(value, dict) and 'value' in value:
+                record[key] = value['value']
+        return record
 
     def check_order(self, current_bookmark_value):
         if self._last_bookmark_value is None:
