@@ -53,7 +53,18 @@
       "type": ["null", "integer"]
     },
     "campaign": {
-      "type": ["null", "object"]
+      "type": ["null", "object"],
+      "properties": {
+        "id": {
+          "type": ["integer"]
+        },
+        "name": {
+          "type": ["null", "string"]
+        },
+        "cost": {
+          "type": ["null", "integer"]
+        }
+      }
     },
     "created_at": {
       "type": ["null", "string"],
