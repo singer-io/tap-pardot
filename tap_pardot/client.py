@@ -41,7 +41,7 @@ class Client:
         self.login()
 
         requests_session = requests.Session()
-        retries = Retry(total=100, backoff_factor=1, status_forcelist=[502, 503, 504])
+        retries = Retry(total=10, backoff_factor=0.5, status_forcelist=[502, 503, 504])
         requests_session.mount("http://", HTTPAdapter(max_retries=retries))
         requests_session.mount("https://", HTTPAdapter(max_retries=retries))
 
