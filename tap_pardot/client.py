@@ -38,7 +38,6 @@ class Client:
 
     def __init__(self, creds):
         self.creds = creds
-        self.login()
 
         requests_session = requests.Session()
         retries = Retry(total=10, backoff_factor=0.5, status_forcelist=[502, 503, 504])
@@ -46,6 +45,8 @@ class Client:
         requests_session.mount("https://", HTTPAdapter(max_retries=retries))
 
         self.requests_session = requests_session
+
+        self.login()
 
     def login(self):
         response = self.requests_session.post(
