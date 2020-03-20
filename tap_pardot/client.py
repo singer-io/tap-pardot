@@ -40,8 +40,15 @@ class Client:
         self.creds = creds
         self.login()
 
+        requests_session = requests.Session()
+        retries = Retry(total=100, backoff_factor=1, status_forcelist=[502, 503, 504])
+        requests_session.mount("http://", HTTPAdapter(max_retries=retries))
+        requests_session.mount("https://", HTTPAdapter(max_retries=retries))
+
+        self.requests_session = requests_session
+
     def login(self):
-        response = requests.post(
+        response = self.requests_session.post(
             AUTH_URL,
             data={
                 "email": self.creds["email"],
@@ -89,12 +96,7 @@ class Client:
             params,
         )
 
-        request_session = requests.Session()
-        retries = Retry(total=100, backoff_factor=1, status_forcelist=[502, 503, 504])
-        request_session.mount("http://", HTTPAdapter(max_retries=retries))
-        request_session.mount("https://", HTTPAdapter(max_retries=retries))
-
-        response = request_session.request(
+        response = self.requests_session.request(
             method, url, headers=self._get_auth_header(), params=params
         )
         response.raise_for_status()
@@ -111,7 +113,7 @@ class Client:
             if error_code == 1:
                 LOGGER.info("API key or user key expired -- Reauthenticating once")
                 self.login()
-                response = requests.request(
+                response = self.requests_session.request(
                     method, url, headers=self._get_auth_header(), params=params
                 )
                 content = response.json()
