@@ -61,9 +61,9 @@ class Stream:
         if isinstance(records, dict):
             records = [records]
 
-        return map(self.flatten_record, records)
+        return map(self.flatten_value_records, records)
 
-    def flatten_record(self, record):
+    def flatten_value_records(self, record):
         """ In case when data comes as a dict with 'value' key only.
         """
         for key, value in record.items():
