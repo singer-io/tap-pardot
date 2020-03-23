@@ -2,6 +2,9 @@ import backoff
 import requests
 import singer
 
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
+
 LOGGER = singer.get_logger()
 
 AUTH_URL = "https://pi.pardot.com/api/login/version/3"
@@ -13,13 +16,6 @@ class PardotException(Exception):
         self.code = response_content.get("@attributes", {}).get("err_code")
         self.response = response_content
         super().__init__(message)
-
-
-def is_not_retryable_pardot_exception(exc):
-    if exc.code == 66:
-        LOGGER.warn("Exceeded concurrent request limit, backing off exponentially.")
-        return False
-    return True
 
 
 class Client:
@@ -35,10 +31,12 @@ class Client:
 
     def __init__(self, creds):
         self.creds = creds
+        self.requests_session = requests.Session()
         self.login()
 
     def login(self):
-        response = requests.post(
+        content = self._make_request(
+            "post",
             AUTH_URL,
             data={
                 "email": self.creds["email"],
@@ -47,12 +45,6 @@ class Client:
             },
             params={"format": "json"},
         )
-
-        # This will only work if they use HTTP codes. Handling Pardot
-        # errors below.
-        response.raise_for_status()
-
-        content = response.json()
 
         self._check_error(content, "authenticating")
 
@@ -77,7 +69,13 @@ class Client:
             )
         }
 
-    def _make_request(self, method, url, params=None):
+    @backoff.on_exception(
+        backoff.expo,
+        (requests.exceptions.Timeout, requests.exceptions.ConnectionError, PardotException),
+        jitter=None,
+        max_tries=10,
+    )
+    def _make_request(self, method, url, params=None, data=None):
         LOGGER.info(
             "%s - Making request to %s endpoint %s, with params %s",
             url,
@@ -85,8 +83,9 @@ class Client:
             url,
             params,
         )
-        response = requests.request(
-            method, url, headers=self._get_auth_header(), params=params
+
+        response = self.requests_session.request(
+            method, url, headers=self._get_auth_header(), params=params, data=data
         )
         response.raise_for_status()
         content = response.json()
@@ -102,19 +101,13 @@ class Client:
             if error_code == 1:
                 LOGGER.info("API key or user key expired -- Reauthenticating once")
                 self.login()
-                response = requests.request(
+                response = self.requests_session.request(
                     method, url, headers=self._get_auth_header(), params=params
                 )
                 content = response.json()
 
         return content
 
-    @backoff.on_exception(
-        backoff.expo,
-        (PardotException),
-        giveup=is_not_retryable_pardot_exception,
-        jitter=None,
-    )
     def describe(self, endpoint, **kwargs):
         url = (ENDPOINT_BASE + self.describe_url).format(endpoint, self.api_version)
 
@@ -126,12 +119,6 @@ class Client:
 
         return content
 
-    @backoff.on_exception(
-        backoff.expo,
-        (PardotException),
-        giveup=is_not_retryable_pardot_exception,
-        jitter=None,
-    )
     def _fetch(self, method, endpoint, format_params, **kwargs):
         base_formatting = [endpoint, self.api_version]
         if format_params:
