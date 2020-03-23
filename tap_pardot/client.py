@@ -18,13 +18,6 @@ class PardotException(Exception):
         super().__init__(message)
 
 
-def is_not_retryable_pardot_exception(exc):
-    if exc.code == 66:
-        LOGGER.warn("Exceeded concurrent request limit, backing off exponentially.")
-        return False
-    return True
-
-
 class Client:
     """Lightweight Client wrapper to allow switching between version 3 and 4 API based
     on availability, if desired."""
@@ -38,18 +31,12 @@ class Client:
 
     def __init__(self, creds):
         self.creds = creds
-
-        requests_session = requests.Session()
-        retries = Retry(total=10, backoff_factor=0.5, status_forcelist=[502, 503, 504])
-        requests_session.mount("http://", HTTPAdapter(max_retries=retries))
-        requests_session.mount("https://", HTTPAdapter(max_retries=retries))
-
-        self.requests_session = requests_session
-
+        self.requests_session = requests.Session()
         self.login()
 
     def login(self):
-        response = self.requests_session.post(
+        content = self._make_request(
+            "post",
             AUTH_URL,
             data={
                 "email": self.creds["email"],
@@ -58,12 +45,6 @@ class Client:
             },
             params={"format": "json"},
         )
-
-        # This will only work if they use HTTP codes. Handling Pardot
-        # errors below.
-        response.raise_for_status()
-
-        content = response.json()
 
         self._check_error(content, "authenticating")
 
@@ -88,7 +69,13 @@ class Client:
             )
         }
 
-    def _make_request(self, method, url, params=None):
+    @backoff.on_exception(
+        backoff.expo,
+        (requests.exceptions.Timeout, requests.exceptions.ConnectionError, PardotException),
+        jitter=None,
+        max_tries=10,
+    )
+    def _make_request(self, method, url, params=None, data=None):
         LOGGER.info(
             "%s - Making request to %s endpoint %s, with params %s",
             url,
@@ -98,7 +85,7 @@ class Client:
         )
 
         response = self.requests_session.request(
-            method, url, headers=self._get_auth_header(), params=params
+            method, url, headers=self._get_auth_header(), params=params, data=data
         )
         response.raise_for_status()
         content = response.json()
@@ -121,12 +108,6 @@ class Client:
 
         return content
 
-    @backoff.on_exception(
-        backoff.expo,
-        (PardotException),
-        giveup=is_not_retryable_pardot_exception,
-        jitter=None,
-    )
     def describe(self, endpoint, **kwargs):
         url = (ENDPOINT_BASE + self.describe_url).format(endpoint, self.api_version)
 
@@ -138,12 +119,6 @@ class Client:
 
         return content
 
-    @backoff.on_exception(
-        backoff.expo,
-        (PardotException),
-        giveup=is_not_retryable_pardot_exception,
-        jitter=None,
-    )
     def _fetch(self, method, endpoint, format_params, **kwargs):
         base_formatting = [endpoint, self.api_version]
         if format_params:
