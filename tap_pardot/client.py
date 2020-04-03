@@ -8,6 +8,11 @@ AUTH_URL = "https://pi.pardot.com/api/login/version/3"
 ENDPOINT_BASE = "https://pi.pardot.com/api/"
 
 
+class Pardot5xxError(Exception):
+    def __init__(self):
+        self.code = None
+
+
 class PardotException(Exception):
     def __init__(self, message, response_content):
         self.code = response_content.get("@attributes", {}).get("err_code")
@@ -88,7 +93,10 @@ class Client:
         response = requests.request(
             method, url, headers=self._get_auth_header(), params=params
         )
-        response.raise_for_status()
+
+        if response.status_code >= 500:
+            raise Pardot5xxError()
+
         content = response.json()
         error_message = content.get("err")
 
@@ -111,7 +119,7 @@ class Client:
 
     @backoff.on_exception(
         backoff.expo,
-        (PardotException),
+        (PardotException,Pardot5xxError),
         giveup=is_not_retryable_pardot_exception,
         jitter=None,
     )
@@ -128,7 +136,7 @@ class Client:
 
     @backoff.on_exception(
         backoff.expo,
-        (PardotException),
+        (PardotException,Pardot5xxError),
         giveup=is_not_retryable_pardot_exception,
         jitter=None,
     )
