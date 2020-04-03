@@ -9,8 +9,7 @@ ENDPOINT_BASE = "https://pi.pardot.com/api/"
 
 
 class Pardot5xxError(Exception):
-    def __init__(self):
-        self.code = None
+    pass
 
 
 class PardotException(Exception):
@@ -21,6 +20,8 @@ class PardotException(Exception):
 
 
 def is_not_retryable_pardot_exception(exc):
+    if isinstance(exc, Pardot5XXError):
+        return True
     if exc.code == 66:
         LOGGER.warn("Exceeded concurrent request limit, backing off exponentially.")
         return False
@@ -94,8 +95,11 @@ class Client:
             method, url, headers=self._get_auth_header(), params=params
         )
 
+        # 5xx errors should be retried
         if response.status_code >= 500:
             raise Pardot5xxError()
+
+        response.raise_for_status()
 
         content = response.json()
         error_message = content.get("err")
