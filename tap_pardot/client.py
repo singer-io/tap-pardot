@@ -21,7 +21,7 @@ class PardotException(Exception):
 
 def is_not_retryable_pardot_exception(exc):
     if isinstance(exc, Pardot5XXError):
-        return True
+        return False
     if exc.code == 66:
         LOGGER.warn("Exceeded concurrent request limit, backing off exponentially.")
         return False
