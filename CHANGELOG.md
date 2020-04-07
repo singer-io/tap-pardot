@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.0
+  * GA Release
+
 ## 0.2.2
   * Fix a naming error of Pardot5xxError
 
