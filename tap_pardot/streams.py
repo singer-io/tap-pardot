@@ -50,6 +50,7 @@ class Stream:
 
     def post_sync(self):
         """Function to run arbitrary code after a full sync completes."""
+        singer.write_state(self.state)
 
     def get_records(self):
         data = self.client.get(self.endpoint, **self.get_params())
