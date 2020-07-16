@@ -1,7 +1,9 @@
 import inspect
-
+import traceback
 import singer
+import sys
 
+LOGGER = singer.get_logger()
 
 class Stream:
     stream_name = None
@@ -95,14 +97,22 @@ class Stream:
     def sync(self):
         self.pre_sync()
 
-        records_synced = 0
-        last_records_synced = -1
-
-        while records_synced != last_records_synced:
-            last_records_synced = records_synced
-            for rec in self.sync_page():
-                records_synced += 1
-                yield rec
+        try:
+            records_synced = 0
+            last_records_synced = -1
+            while records_synced != last_records_synced:
+                last_records_synced = records_synced
+                for rec in self.sync_page():
+                    records_synced += 1
+                    yield rec
+        except Exception as exc:
+            LOGGER.error(
+                "exception: %s \n traceback: %s",
+                exc,
+                traceback.format_exc(),
+            )
+            self.post_sync()
+            return sys.exit(1)
 
         self.post_sync()
 
