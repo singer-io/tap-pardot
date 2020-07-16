@@ -5,7 +5,6 @@ from singer import utils
 from singer.catalog import write_catalog
 
 from .client import Client
-from .discover import discover
 from .sync import sync
 
 LOGGER = singer.get_logger()
@@ -20,20 +19,8 @@ def main():
 
     client = Client(args.config)
 
-    # If discover flag was passed, run discovery mode and dump output to stdout
-    if args.discover:
-        LOGGER.info("Starting discovery mode")
-        catalog = discover(client)
-        write_catalog(catalog)
-    # Otherwise run in sync mode
-    else:
-        LOGGER.info("Starting sync mode")
-        if args.catalog:
-            catalog = args.catalog
-        else:
-            catalog = discover(client)
-
-        sync(client, args.config, args.state, catalog)
+    LOGGER.info("Starting sync mode")
+    sync(client, args.config, args.state)
 
 
 if __name__ == "__main__":
