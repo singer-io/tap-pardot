@@ -1,6 +1,8 @@
 import inspect
 
 import singer
+from singer import utils
+from datetime import timedelta
 
 
 class Stream:
@@ -143,6 +145,108 @@ class UpdatedAtReplicationStream(Stream):
             "sort_order": "ascending",
         }
 
+class UpdatedAtDescendingSortReplicationStream(Stream):
+    """
+    Streams where records can only be sorted backwards by updated_at.
+
+    Syncing mechanism:
+
+    - use bookmark to keep track of the overall window_start and window_end
+    - use bookmark to track internal sub_window_end bookmark
+    - sync records from now/end_date to bookmark/start_date and adjust overall bookmark after full sync
+    """
+    replication_key = ["updated_at"]
+    replication_method = "INCREMENTAL"
+
+    def get_params(self, window_start, window_end):
+        return {
+            "updated_after": window_start,
+            "updated_before": window_end,
+            "sort_by": "updated_at",
+            "sort_order": "descending",
+        }
+
+    def update_bookmark(self, key, value):
+        singer.bookmarks.write_bookmark(
+            self.state, self.stream_name, key, utils.strftime(value)
+        )
+
+    def _get_window_state(self):
+        window_start = singer.get_bookmark(self.state, self.stream_name, 'window_start')
+        sub_window_end = singer.get_bookmark(self.state, self.stream_name, 'sub_window_end')
+        window_end = singer.get_bookmark(self.state, self.stream_name, 'window_end')
+
+        start_date = self.config.get('start_date')
+        end_date = self.config.get('end_date', window_end)
+
+        window_start = utils.strptime_to_utc(max(window_start, start_date))
+        sub_window_end = sub_window_end and utils.strptime_to_utc(min(sub_window_end, end_date))
+        window_end = utils.strptime_to_utc(min(window_end, end_date))
+
+        return window_start, sub_window_end, window_end
+
+    def pre_sync(self):
+        if singer.get_bookmark(self.state, self.stream_name, 'sub_window_end') is None:
+            if singer.get_bookmark(self.state, self.stream_name, 'window_start') is None:
+                singer.write_bookmark(self.state, self.stream_name, "window_start", self.config.get('start_date'))
+            if singer.get_bookmark(self.state, self.stream_name, 'window_end') is None:
+                now = utils.strftime(utils.now())
+                singer.write_bookmark(self.state, self.stream_name, "window_end", min(self.config.get('end_date', now), now))
+        singer.write_state(self.state)
+
+    def post_sync(self):
+        # Set window_start to current window_end
+        window_start = singer.get_bookmark(self.state, self.stream_name, "window_end")
+        singer.write_bookmark(self.state, self.stream_name, "window_start", window_start)
+        singer.clear_bookmark(self.state, self.stream_name, "window_end")
+        singer.bookmarks.clear_bookmark(self.state, self.stream_name, "sub_window_end")
+        singer.write_state(self.state)
+
+
+    def check_order(self, current_bookmark_value):
+        if self._last_bookmark_value is None:
+            self._last_bookmark_value = current_bookmark_value
+
+        if current_bookmark_value > self._last_bookmark_value:
+            raise Exception(
+                "Detected out of order data. Current bookmark value {} is greater than last bookmark value {}".format(
+                    current_bookmark_value, self._last_bookmark_value
+                )
+            )
+
+        self._last_bookmark_value = current_bookmark_value
+
+    def get_records(self, window_start, window_end):
+        """ Make one page request and update bookmarks, sync handles pagination based on result size. """
+        replication_key = self.replication_key[0]
+        sub_window_end = window_end
+        data = self.client.get(self.endpoint, **self.get_params(window_start, window_end))
+
+        if data["result"] is None or data["result"].get("total_results") == 0:
+            return []
+
+        records = data["result"][self.data_key]
+
+        if isinstance(records, dict):
+            records = [records]
+
+        for rec in records:
+            self.check_order(rec[replication_key])
+            yield rec
+
+        sub_window_end = utils.strptime_to_utc(records[-1][replication_key])
+        self.update_bookmark("sub_window_end", sub_window_end)
+        singer.write_state(self.state)
+
+    def sync_page(self):
+        window_start, sub_window_end, window_end = self._get_window_state()
+
+        if sub_window_end is not None:
+            for rec in self.get_records(window_start, sub_window_end):
+                yield rec
+        else:
+            for rec in self.get_records(window_start, window_end):
+                yield rec
 
 class ComplexBookmarkStream(Stream):
     """Streams that need to keep track of more than 1 bookmark."""
@@ -353,7 +457,7 @@ class EmailClicks(IdReplicationStream):
     is_dynamic = False
 
 
-class VisitorActivities(IdReplicationStream):
+class VisitorActivities(UpdatedAtDescendingSortReplicationStream):
     stream_name = "visitor_activities"
     data_key = "visitor_activity"
     endpoint = "visitorActivity"

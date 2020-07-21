@@ -37,6 +37,7 @@ class Client:
     creds = None
 
     get_url = "{}/version/{}/do/query"
+    get_id_url = "{}/version/{}/do/read/id/{}"
     describe_url = "{}/version/{}/do/describe"
 
     def __init__(self, creds):
@@ -144,11 +145,14 @@ class Client:
         giveup=is_not_retryable_pardot_exception,
         jitter=None,
     )
-    def _fetch(self, method, endpoint, format_params, **kwargs):
+    def _fetch(self, method, endpoint, format_params, object_id=None, **kwargs):
         base_formatting = [endpoint, self.api_version]
         if format_params:
             base_formatting.extend(format_params)
-        url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
+        if object_id is not None:
+            url = (ENDPOINT_BASE + self.get_id_url).format(*base_formatting, object_id)
+        else:
+            url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
 
         params = {"format": "json", "output": "bulk", **kwargs}
 
@@ -160,6 +164,9 @@ class Client:
 
     def get(self, endpoint, format_params=None, **kwargs):
         return self._fetch("get", endpoint, format_params, **kwargs)
+
+    def get_specific(self, endpoint, object_id, format_params=None, **kwargs):
+        return self._fetch("get", endpoint, format_params, object_id, **kwargs)
 
     def post(self, endpoint, format_params=None, **kwargs):
         return self._fetch("post", endpoint, format_params, **kwargs)
