@@ -218,6 +218,10 @@ class UpdatedAtDescendingSortReplicationStream(Stream):
 
     def get_records(self, window_start, window_end):
         """ Make one page request and update bookmarks, sync handles pagination based on result size. """
+        if window_start > window_end:
+            # Stop iteration scenario
+            return []
+
         replication_key = self.replication_key[0]
         sub_window_end = window_end
         data = self.client.get(self.endpoint, **self.get_params(window_start, window_end))
