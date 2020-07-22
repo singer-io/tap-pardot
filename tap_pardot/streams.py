@@ -168,20 +168,27 @@ class UpdatedAtDescendingSortReplicationStream(Stream):
 
     def update_bookmark(self, key, value):
         singer.bookmarks.write_bookmark(
-            self.state, self.stream_name, key, utils.strftime(value)
+            self.state, self.stream_name, key, value
         )
 
     def _get_window_state(self):
+        """
+        Pardot's API seems to treat dates like 'YYYY-mm-DD HH:MM:SS' in the
+        user's time zone, and dates like 'YYYY-mm-DDTHH:MM:SSZ in UTC.
+
+        For consistency:
+        - All datetimes should be in string format, never parsed.
+        - The window_start and window_end times should all be in UTC.
+        - The sub_window should be in the user's timezone.
+        """
         window_start = singer.get_bookmark(self.state, self.stream_name, 'window_start')
         sub_window_end = singer.get_bookmark(self.state, self.stream_name, 'sub_window_end')
         window_end = singer.get_bookmark(self.state, self.stream_name, 'window_end')
 
         start_date = self.config.get('start_date')
-        end_date = self.config.get('end_date', window_end)
 
-        window_start = utils.strptime_to_utc(max(window_start, start_date))
-        sub_window_end = sub_window_end and utils.strptime_to_utc(min(sub_window_end, end_date))
-        window_end = utils.strptime_to_utc(min(window_end, end_date))
+        window_start = max(window_start, start_date)
+        window_end = window_end
 
         return window_start, sub_window_end, window_end
 
@@ -190,8 +197,7 @@ class UpdatedAtDescendingSortReplicationStream(Stream):
             if singer.get_bookmark(self.state, self.stream_name, 'window_start') is None:
                 singer.write_bookmark(self.state, self.stream_name, "window_start", self.config.get('start_date'))
             if singer.get_bookmark(self.state, self.stream_name, 'window_end') is None:
-                now = utils.strftime(utils.now())
-                singer.write_bookmark(self.state, self.stream_name, "window_end", min(self.config.get('end_date', now), now))
+                singer.write_bookmark(self.state, self.stream_name, "window_end", utils.strftime(utils.now()))
         singer.write_state(self.state)
 
     def post_sync(self):
@@ -218,10 +224,6 @@ class UpdatedAtDescendingSortReplicationStream(Stream):
 
     def get_records(self, window_start, window_end):
         """ Make one page request and update bookmarks, sync handles pagination based on result size. """
-        if window_start > window_end:
-            # Stop iteration scenario
-            return []
-
         replication_key = self.replication_key[0]
         sub_window_end = window_end
         data = self.client.get(self.endpoint, **self.get_params(window_start, window_end))
@@ -238,7 +240,7 @@ class UpdatedAtDescendingSortReplicationStream(Stream):
             self.check_order(rec[replication_key])
             yield rec
 
-        sub_window_end = utils.strptime_to_utc(records[-1][replication_key])
+        sub_window_end = records[-1][replication_key]
         self.update_bookmark("sub_window_end", sub_window_end)
         singer.write_state(self.state)
 
