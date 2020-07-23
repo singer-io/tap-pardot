@@ -240,7 +240,7 @@ class UpdatedAtDescendingSortReplicationStream(Stream):
             bookmark_value = rec.get(replication_key)
             if bookmark_value is None:
                 raise Exception("visitor_activities - Visitor Activity (ID: {}) is missing updated_at value.".format(rec.get("id")))
-            self.check_order()
+            self.check_order(bookmark_value)
             yield rec
 
         sub_window_end = records[-1][replication_key]
