@@ -393,12 +393,20 @@ class Users(NoUpdatedAtSortingStream):
     is_dynamic = False
 
 
-class Visitors(UpdatedAtReplicationStream):
+class Visitors(UpdatedAtReplicationStreamForVisitors):
     stream_name = "visitors"
     data_key = "visitor"
     endpoint = "visitor"
 
     is_dynamic = False
+
+    def get_params(self):
+        return {
+            "updated_after": self.get_bookmark(),
+            "sort_by": "updated_at",
+            "sort_order": "ascending",
+            "only_identified": "false",
+        }
 
 
 class Visits(ChildStream, NoUpdatedAtSortingStream):
