@@ -393,7 +393,7 @@ class Users(NoUpdatedAtSortingStream):
     is_dynamic = False
 
 
-class Visitors(UpdatedAtReplicationStreamForVisitors):
+class Visitors(UpdatedAtReplicationStream):
     stream_name = "visitors"
     data_key = "visitor"
     endpoint = "visitor"
