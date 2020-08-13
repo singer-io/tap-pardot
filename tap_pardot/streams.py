@@ -298,7 +298,7 @@ class ChildStream(ComplexBookmarkStream):
         return {"offset": self.get_bookmark("offset")}
 
     def get_records(self, parent_ids):
-        params = {self.parent_id_param: parent_ids, **self.get_params()}
+        params = {self.parent_id_param: ",".join([str(x) for x in parent_ids]), **self.get_params()}
         data = self.client.post(self.endpoint, **params)
         self.update_bookmark("offset", params.get("offset", 0) + 200)
 
