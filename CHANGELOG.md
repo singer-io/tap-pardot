@@ -1,5 +1,7 @@
 # Changelog
 
+## 1.1.0
+  * Added fields to `visitor_activities` stream [#10](https://github.com/singer-io/tap-pardot/pull/10)
 ## 1.0.0
   * GA Release
 
