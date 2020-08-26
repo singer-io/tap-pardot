@@ -10,6 +10,9 @@
     "visitor_id": {
       "type": ["null", "integer"]
     },
+    "campaign_id": {
+      "type": ["null", "integer"]
+    },
     "type": {
       "type": ["null", "integer"]
     },
@@ -56,6 +59,10 @@
       "type": ["null", "object"]
     },
     "created_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "updated_at": {
       "type": ["null", "string"],
       "format": "date-time"
     }
