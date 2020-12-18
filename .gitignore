@@ -106,3 +106,5 @@ venv.bak/
 catalog.json
 config.json
 state.json
+
+tests/__pycache__
