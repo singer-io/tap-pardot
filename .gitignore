@@ -107,4 +107,5 @@ catalog.json
 config.json
 configredshift.json
 state.json
-venv-target-redshift/
+
+tests/__pycache__
