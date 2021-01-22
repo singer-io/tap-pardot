@@ -41,7 +41,8 @@ class Client:
 
     def __init__(self, creds):
         self.creds = creds
-        self.login()
+        self.api_version = "4"
+        # self.login()
 
     def login(self):
         response = requests.post(
@@ -62,7 +63,7 @@ class Client:
 
         self._check_error(content, "authenticating")
 
-        self.api_version = content.get("version") or "3"
+
         self.api_key = content["api_key"]
 
     def _check_error(self, content, activity):
@@ -78,9 +79,8 @@ class Client:
 
     def _get_auth_header(self):
         return {
-            "Authorization": "Pardot api_key={}, user_key={}".format(
-                self.api_key, self.creds["user_key"]
-            )
+            "Authorization": "Bearer {}".format(self.creds["access_token"]),
+            "Pardot-Business-Unit-Id": self.creds["pardot_business_unit_id"]
         }
 
     def _make_request(self, method, url, params=None):
