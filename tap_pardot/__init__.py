@@ -10,7 +10,7 @@ from .sync import sync
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "access_token", "pardot_business_unit_id"]
+REQUIRED_CONFIG_KEYS = ["start_date", "client_id", "client_secret", "refresh_token", "pardot_business_unit_id"]
 
 
 @utils.handle_top_exception(LOGGER)

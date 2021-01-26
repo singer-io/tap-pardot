@@ -2,6 +2,8 @@ import backoff
 import requests
 import singer
 
+from base64 import b64encode
+
 LOGGER = singer.get_logger()
 
 AUTH_URL = "https://pi.pardot.com/api/login/version/3"
@@ -42,6 +44,7 @@ class Client:
     def __init__(self, creds):
         self.creds = creds
         self.api_version = "4"
+        self.refresh_credentials()
         # self.login()
 
     def login(self):
@@ -83,6 +86,34 @@ class Client:
             "Pardot-Business-Unit-Id": self.creds["pardot_business_unit_id"]
         }
 
+    def refresh_credentials(self):
+        header_token = b64encode((self.creds["client_id"] + ":" + self.creds["client_secret"]).encode('utf-8'))
+
+        headers = {
+            "Authorization": "Basic " + header_token.decode('utf-8'),
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        params = {
+            "grant_type": "refresh_token",
+            "refresh_token": self.creds["refresh_token"],
+        }
+        method = "POST"
+        url = "http://login.salesforce.com/services/oauth2/token"
+        response = requests.request(
+            method,
+            url,
+            headers=headers,
+            params=params
+        )
+        
+        response.raise_for_status()
+        response = response.json()
+
+        # Write to config file
+        self.creds['access_token'] = response["access_token"]
+
+
     def _make_request(self, method, url, params=None):
         LOGGER.info(
             "%s - Making request to %s endpoint %s, with params %s",
@@ -91,9 +122,17 @@ class Client:
             url,
             params,
         )
-        response = requests.request(
-            method, url, headers=self._get_auth_header(), params=params
-        )
+        try:
+            response = requests.request(
+                method, url, headers=self._get_auth_header(), params=params
+            )
+        except HTTPError as e:
+            if e.response.status_code == 401:
+                # maybe log something
+                self.refresh_credentials()
+                response = requests.request(
+                    method, url, headers=self._get_auth_header(), params=params
+                )
 
         # 5xx errors should be retried
         if response.status_code >= 500:
