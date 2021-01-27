@@ -17,7 +17,7 @@ def main():
     # Parse command line arguments
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
 
-    client = Client(args.config)
+    client = Client(**args.config)
 
     LOGGER.info("Starting sync mode")
     sync(client, args.config, args.state)
