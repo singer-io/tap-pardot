@@ -30,7 +30,7 @@ class PardotException(Exception):
 def is_not_retryable_pardot_exception(exc):
     if isinstance(exc, Pardot401Error):
         return False
-    if isinstance(exc, Pardot88Error):
+    if isinstance(exc, Pardot89Error):
         return False
     if isinstance(exc, Pardot5xxError):
         return False
@@ -97,7 +97,6 @@ class Client:
         response.raise_for_status()
         response = response.json()
 
-        # Write to config file
         self.creds['access_token'] = response["access_token"]
 
 
