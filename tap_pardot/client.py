@@ -6,11 +6,17 @@ from base64 import b64encode
 
 LOGGER = singer.get_logger()
 
-AUTH_URL = "https://pi.pardot.com/api/login/version/3"
-ENDPOINT_BASE = "https://pi.pardot.com/api/"
+ENDPOINT_BASE = "https://pi.demo.pardot.com/api/"
+REFRESH_URL = "https://login.salesforce.com/services/oauth2/token"
 
 
 class Pardot5xxError(Exception):
+    pass
+
+class Pardot401Error(Exception):
+    pass
+
+class Pardot89Error(Exception):
     pass
 
 
@@ -22,6 +28,10 @@ class PardotException(Exception):
 
 
 def is_not_retryable_pardot_exception(exc):
+    if isinstance(exc, Pardot401Error):
+        return False
+    if isinstance(exc, Pardot88Error):
+        return False
     if isinstance(exc, Pardot5xxError):
         return False
     if exc.code == 66:
@@ -43,31 +53,8 @@ class Client:
 
     def __init__(self, creds):
         self.creds = creds
-        self.api_version = "4"
         self.refresh_credentials()
-        # self.login()
-
-    def login(self):
-        response = requests.post(
-            AUTH_URL,
-            data={
-                "email": self.creds["email"],
-                "password": self.creds["password"],
-                "user_key": self.creds["user_key"],
-            },
-            params={"format": "json"},
-        )
-
-        # This will only work if they use HTTP codes. Handling Pardot
-        # errors below.
-        response.raise_for_status()
-
-        content = response.json()
-
-        self._check_error(content, "authenticating")
-
-
-        self.api_key = content["api_key"]
+        self.api_version = "4"
 
     def _check_error(self, content, activity):
         error_message = content.get("err")
@@ -99,14 +86,14 @@ class Client:
             "refresh_token": self.creds["refresh_token"],
         }
         method = "POST"
-        url = "http://login.salesforce.com/services/oauth2/token"
+
         response = requests.request(
             method,
-            url,
+            REFRESH_URL,
             headers=headers,
             params=params
         )
-        
+
         response.raise_for_status()
         response = response.json()
 
@@ -114,25 +101,30 @@ class Client:
         self.creds['access_token'] = response["access_token"]
 
 
+    @backoff.on_exception(
+        backoff.expo,
+        (Pardot401Error,Pardot89Error),
+        max_tries=3,
+        giveup=is_not_retryable_pardot_exception,
+    )
     def _make_request(self, method, url, params=None):
         LOGGER.info(
             "%s - Making request to %s endpoint %s, with params %s",
-            url,
+            url.format(self.api_version),
             method.upper(),
-            url,
+            url.format(self.api_version),
             params,
         )
-        try:
-            response = requests.request(
-                method, url, headers=self._get_auth_header(), params=params
-            )
-        except HTTPError as e:
-            if e.response.status_code == 401:
-                # maybe log something
-                self.refresh_credentials()
-                response = requests.request(
-                    method, url, headers=self._get_auth_header(), params=params
-                )
+
+        headers = self._get_auth_header()
+        response = requests.request(
+            method, url.format(self.api_version), headers=headers, params=params
+        )
+
+        if response.status_code == 401:
+            LOGGER.info("Received a 401 unauthenticated error from Pardot. Reauthing and retrying the request.")
+            self.refresh_credentials()
+            raise Pardot401Error
 
         # 5xx errors should be retried
         if response.status_code >= 500:
@@ -157,6 +149,10 @@ class Client:
                     method, url, headers=self._get_auth_header(), params=params
                 )
                 content = response.json()
+            if error_code == 89:
+                LOGGER.info("Pardot returned error code 89, switching to api version 3")
+                self.api_version = "3"
+                raise Pardot89Error
 
         return content
 
@@ -164,10 +160,9 @@ class Client:
         backoff.expo,
         (PardotException,Pardot5xxError),
         giveup=is_not_retryable_pardot_exception,
-        jitter=None,
     )
     def describe(self, endpoint, **kwargs):
-        url = (ENDPOINT_BASE + self.describe_url).format(endpoint, self.api_version)
+        url = (ENDPOINT_BASE + self.describe_url).format(endpoint, '{}')
 
         params = {"format": "json", "output": "bulk", **kwargs}
 
@@ -184,7 +179,7 @@ class Client:
         jitter=None,
     )
     def _fetch(self, method, endpoint, format_params, **kwargs):
-        base_formatting = [endpoint, self.api_version]
+        base_formatting = [endpoint, '{}']
         if format_params:
             base_formatting.extend(format_params)
         url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
