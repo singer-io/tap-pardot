@@ -6,7 +6,8 @@ from base64 import b64encode
 
 LOGGER = singer.get_logger()
 
-ENDPOINT_BASE = "https://pi.demo.pardot.com/api/"
+AUTH_URL = "https://pi.pardot.com/api/login/version/3"
+ENDPOINT_BASE = "https://pi.pardot.com/api/"
 REFRESH_URL = "https://login.salesforce.com/services/oauth2/token"
 
 
@@ -19,6 +20,9 @@ class Pardot401Error(Exception):
 class Pardot89Error(Exception):
     pass
 
+class AuthCredsMissingError(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 class PardotException(Exception):
     def __init__(self, message, response_content):
@@ -53,8 +57,43 @@ class Client:
 
     def __init__(self, creds):
         self.creds = creds
-        self.refresh_credentials()
         self.api_version = "4"
+        if self.has_oauth_values():
+            self.refresh_credentials()
+        elif self.has_api_key_auth_values():
+            self.login()
+        else:
+            raise AuthCredsMissingError("Requires OAuth credentials.")
+
+
+    def has_oauth_values(self):
+        return self.creds.get('refresh_token') and self.creds.get('client_id') and self.creds.get('client_secret') and self.creds.get('pardot_business_unit_id')
+
+    def has_api_key_auth_values(self):
+        return self.creds.get('email') and self.creds.get('password') and self.creds.get('user_key')
+
+    def login(self):
+        response = requests.post(
+            AUTH_URL,
+            data={
+                "email": self.creds["email"],
+                "password": self.creds["password"],
+                "user_key": self.creds["user_key"],
+            },
+            params={"format": "json"},
+        )
+
+        # This will only work if they use HTTP codes. Handling Pardot
+        # errors below.
+        response.raise_for_status()
+
+        content = response.json()
+
+        self._check_error(content, "authenticating")
+
+
+        self.api_key = content["api_key"]
+
 
     def _check_error(self, content, activity):
         error_message = content.get("err")
@@ -68,10 +107,20 @@ class Client:
             )
 
     def _get_auth_header(self):
-        return {
-            "Authorization": "Bearer {}".format(self.creds["access_token"]),
-            "Pardot-Business-Unit-Id": self.creds["pardot_business_unit_id"]
-        }
+        if self.has_oauth_values():
+            headers = {
+                "Authorization": "Bearer {}".format(self.creds["access_token"]),
+                "Pardot-Business-Unit-Id": self.creds["pardot_business_unit_id"]
+            }
+        # This is the case where the tap has api_key auth config set up
+        else:
+            headers = {
+                "Authorization": "Pardot api_key={}, user_key={}".format(
+                    self.api_key, self.creds["user_key"]
+                )
+            }
+
+        return headers
 
     def refresh_credentials(self):
         header_token = b64encode((self.creds["client_id"] + ":" + self.creds["client_secret"]).encode('utf-8'))
@@ -115,15 +164,15 @@ class Client:
             params,
         )
 
-        headers = self._get_auth_header()
         response = requests.request(
-            method, url.format(self.api_version), headers=headers, params=params
+            method, url.format(self.api_version), headers=self._get_auth_header(), params=params
         )
 
         if response.status_code == 401:
-            LOGGER.info("Received a 401 unauthenticated error from Pardot. Reauthing and retrying the request.")
-            self.refresh_credentials()
-            raise Pardot401Error
+            if self.has_oauth_values():
+                LOGGER.info("Received a 401 unauthenticated error from Pardot. Reauthing and retrying the request.")
+                self.refresh_credentials()
+                raise Pardot401Error
 
         # 5xx errors should be retried
         if response.status_code >= 500:
