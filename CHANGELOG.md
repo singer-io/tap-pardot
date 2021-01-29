@@ -1,7 +1,11 @@
 # Changelog
 
+## 1.2.0
+  * Revert 1.1.0 [#20](https://github.com/singer-io/tap-pardot/pull/20)
+
 ## 1.1.0
   * Add oauth support [#18](https://github.com/singer-io/tap-pardot/pull/18)
+
 ## 1.0.1
   * Added fields to `visitor_activities` stream [#10](https://github.com/singer-io/tap-pardot/pull/10)
 
