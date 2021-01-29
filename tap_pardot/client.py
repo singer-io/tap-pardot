@@ -63,7 +63,7 @@ class Client:
         elif self.has_api_key_auth_values():
             self.login()
         else:
-            raise AuthCredsMissingError("Requires OAuth credentials.")
+            raise AuthCredsMissingError("Requires OAuth credentials refresh token, client id, and client secret.")
 
 
     def has_oauth_values(self):
@@ -170,7 +170,7 @@ class Client:
 
         if response.status_code == 401:
             if self.has_oauth_values():
-                LOGGER.info("Received a 401 unauthenticated error from Pardot. Reauthing and retrying the request.")
+                LOGGER.warning("Received a 401 unauthenticated error from Pardot. Reauthing and retrying the request.")
                 self.refresh_credentials()
                 raise Pardot401Error
 
@@ -198,6 +198,8 @@ class Client:
                 )
                 content = response.json()
             if error_code == 89:
+                # 89 specifically means you are using api version 4 and should use 3
+                # https://developer.pardot.com/kb/error-codes-messages/#error-code-89
                 LOGGER.info("Pardot returned error code 89, switching to api version 3")
                 self.api_version = "3"
                 raise Pardot89Error
