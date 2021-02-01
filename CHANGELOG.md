@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.0
+  * Add back oauth support with bug fix [#22](https://github.com/singer-io/tap-pardot/pull/22)
+
 ## 1.2.0
   * Revert 1.1.0 [#20](https://github.com/singer-io/tap-pardot/pull/20)
 
