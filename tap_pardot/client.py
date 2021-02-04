@@ -63,7 +63,7 @@ class Client:
         elif self.has_api_key_auth_values():
             self.login()
         else:
-            raise AuthCredsMissingError("Requires OAuth credentials refresh token, client id, and client secret.")
+            raise AuthCredsMissingError("Requires OAuth credentials refresh token, client id, client secret, or Pardot Business Unit Id.")
 
 
     def has_oauth_values(self):
