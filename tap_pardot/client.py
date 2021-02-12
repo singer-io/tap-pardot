@@ -19,7 +19,7 @@ class PardotException(Exception):
 
 
 class Client:
-    api_version = None
+    api_version = 4
     access_token = None
     refresh_token = None
     client_id = None
@@ -39,7 +39,7 @@ class Client:
 
     def _get_auth_header(self):
         return {
-            "Authorization": "Bearer " + self.sftoken,
+            "Authorization": "Bearer " + self.access_token,
             "Pardot-Business-Unit-Id": self.business_unit_id
         }
 
@@ -63,8 +63,15 @@ class Client:
             method, url, headers=self._get_auth_header(), params=params, data=data
         )
         content = response.json()
-        error_json = content.get("err", None) or {}
-        error_code = error_json.get("@attributes", {}).get("err_code")
+        error_description = content.get("err", None) or {}
+        error_code = None
+        if isinstance(error_description, dict):
+            error_code = error_description.get(
+                "@attributes", {}).get("err_code")
+        elif isinstance(error_description, str) and 'access_token is invalid' in error_description.lower():
+            LOGGER.info(f"auth error: {error_description}")
+            error_code = 184
+
         if error_code == 184:
             # https://developer.pardot.com/kb/error-codes-messages/#error-code-184
             LOGGER.info(
@@ -75,11 +82,11 @@ class Client:
                 method, url, headers=self._get_auth_header(), params=params
             )
             content = response.json()
-        elif error_json:
+        elif error_description:
             activity = activity or f"Making {method} request to {url}"
             raise PardotException(
                 "Pardot returned error code {} while {}. Message: {}".format(
-                    error_code, activity, error_json
+                    error_code, activity, error_description
                 ),
                 content,
             )
@@ -89,14 +96,14 @@ class Client:
     def _refresh_access_token(self):
         url = "https://login.salesforce.com/services/oauth2/token"
         data = {"grant_type": "refresh_token",
-                "client_id": self.sf_consumer_key,
-                "client_secret": self.sf_consumer_secret,
-                "refresh_token": self.sftoken_refresh}
-        headers = {"Content-Type": "application/x-www-form-urlencoded"},
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "refresh_token": self.refresh_token}
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
         response = self.requests_session.post(
             url, data=data, headers=headers).json()
-        self.sftoken = response.get("access_token")
-        if not self.sftoken:
+        self.access_token = response.get("access_token")
+        if not self.access_token:
             raise Exception(
                 f"Failed to refresh token, status:{response.status_code}, content: {response.text}")
 

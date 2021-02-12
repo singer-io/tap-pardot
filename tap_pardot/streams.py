@@ -5,6 +5,7 @@ import sys
 
 LOGGER = singer.get_logger()
 
+
 class Stream:
     stream_name = None
     data_key = None
@@ -177,7 +178,8 @@ class ComplexBookmarkStream(Stream):
         return defaults.get(key)
 
     def clear_bookmark(self, bookmark_key):
-        singer.bookmarks.clear_bookmark(self.state, self.stream_name, bookmark_key)
+        singer.bookmarks.clear_bookmark(
+            self.state, self.stream_name, bookmark_key)
         if self.emit:
             singer.write_state(self.state)
 
@@ -194,7 +196,8 @@ class ComplexBookmarkStream(Stream):
             singer.write_state(self.state)
 
     def sync_page(self):
-        raise NotImplementedError("ComplexBookmarkStreams need a custom sync method.")
+        raise NotImplementedError(
+            "ComplexBookmarkStreams need a custom sync method.")
 
 
 class NoUpdatedAtSortingStream(ComplexBookmarkStream):
