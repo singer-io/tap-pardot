@@ -9,7 +9,9 @@ from .sync import sync
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "email", "password", "user_key"]
+
+REQUIRED_CONFIG_KEYS = ["start_date", "refresh_token",
+                        "client_id", "client_secret", "business_unit_id"]
 
 
 @utils.handle_top_exception(LOGGER)
