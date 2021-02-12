@@ -29,7 +29,7 @@ class Client:
     get_url = "{}/version/{}/do/query"
     describe_url = "{}/version/{}/do/describe"
 
-    def __init__(self, business_unit_id, client_id, client_secret, refresh_token, access_token="dummy"):
+    def __init__(self, business_unit_id, client_id, client_secret, refresh_token, access_token="dummy", **kwargs):
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.client_id = client_id
@@ -39,13 +39,14 @@ class Client:
 
     def _get_auth_header(self):
         return {
-            "Authorization": "Bearer " + self.sftoken, 
+            "Authorization": "Bearer " + self.sftoken,
             "Pardot-Business-Unit-Id": self.business_unit_id
         }
 
     @backoff.on_exception(
         backoff.expo,
-        (requests.exceptions.Timeout, requests.exceptions.ConnectionError, PardotException),
+        (requests.exceptions.Timeout,
+         requests.exceptions.ConnectionError, PardotException),
         jitter=None,
         max_tries=10,
     )
@@ -57,7 +58,7 @@ class Client:
             url,
             params,
         )
-        
+
         response = self.requests_session.request(
             method, url, headers=self._get_auth_header(), params=params, data=data
         )
@@ -66,7 +67,8 @@ class Client:
         error_code = error_json.get("@attributes", {}).get("err_code")
         if error_code == 184:
             # https://developer.pardot.com/kb/error-codes-messages/#error-code-184
-            LOGGER.info("Access_token is invalid, unknown, or malformed -- refreshing token once")
+            LOGGER.info(
+                "Access_token is invalid, unknown, or malformed -- refreshing token once")
             self._refresh_access_token()
             LOGGER.info("Token refresh success")
             response = self.requests_session.request(
@@ -90,11 +92,13 @@ class Client:
                 "client_id": self.sf_consumer_key,
                 "client_secret": self.sf_consumer_secret,
                 "refresh_token": self.sftoken_refresh}
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        response = self.requests_session.post(url, data=data, headers=headers).json()
+        headers = {"Content-Type": "application/x-www-form-urlencoded"},
+        response = self.requests_session.post(
+            url, data=data, headers=headers).json()
         self.sftoken = response.get("access_token")
         if not self.sftoken:
-            raise Exception(f"Failed to refresh token, status:{response.status_code}, content: {response.text}")
+            raise Exception(
+                f"Failed to refresh token, status:{response.status_code}, content: {response.text}")
 
     def describe(self, endpoint, **kwargs):
         url = (ENDPOINT_BASE + self.describe_url).format(endpoint, self.api_version)
