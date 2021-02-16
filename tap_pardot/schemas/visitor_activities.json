@@ -52,6 +52,9 @@
     "file_id": {
       "type": ["null", "integer"]
     },
+    "campaign_id": {
+      "type": ["null", "integer"]
+    },
     "campaign": {
       "type": ["null", "object"],
       "properties": {
@@ -67,6 +70,10 @@
       }
     },
     "created_at": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "updated_at": {
       "type": ["null", "string"],
       "format": "date-time"
     }
