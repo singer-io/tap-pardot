@@ -240,7 +240,7 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
     def sync_page(self):
         for rec in self.get_records():
             current_id = rec["id"]
-            if rec["updated_at"] <= self.last_updated_at:
+            if self.last_updated_at and rec["updated_at"] <= self.last_updated_at:
                 continue
 
             self.check_order(current_id)
@@ -422,6 +422,14 @@ class Visitors(UpdatedAtReplicationStream):
     endpoint = "visitor"
 
     is_dynamic = False
+
+    def get_params(self):
+        return {
+            "updated_after": self.get_bookmark(),
+            "sort_by": "updated_at",
+            "sort_order": "ascending",
+            "only_identified": "false",
+        }
 
 
 class Visits(ChildStream, NoUpdatedAtSortingStream):
