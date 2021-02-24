@@ -65,7 +65,8 @@ class Stream:
         if isinstance(records, dict):
             records = [records]
 
-        return map(self.flatten_value_records, records)
+        for record in sorted(records, key=lambda x: x[self.replication_keys[0]]):
+            yield self.flatten_value_records(record)
 
     def flatten_value_records(self, record):
         """ In case when data comes as a dict with 'value' key only.
@@ -81,8 +82,8 @@ class Stream:
 
         if current_bookmark_value < self._last_bookmark_value:
             raise Exception(
-                "Detected out of order data. Current bookmark value {} is less than last bookmark value {}".format(
-                    current_bookmark_value, self._last_bookmark_value
+                "Detected out of order data. stream name: {} Current bookmark value {} is less than last bookmark value {}".format(
+                    self.stream_name, current_bookmark_value, self._last_bookmark_value
                 )
             )
 
