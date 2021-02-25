@@ -445,6 +445,16 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
     parent_class = Visitors
     parent_id_param = "visitor_ids"
 
+    def pre_sync(self):
+        self.parent_bookmark = self.get_bookmark('parent_bookmark')
+
+        if self.parent_bookmark is None:
+            self.parent_bookmark = {"bookmarks": {
+                self.parent_class.stream_name: {"updated_at": self.get_bookmark('updated_at')}}}
+
+            self.update_bookmark("parent_bookmark", self.parent_bookmark)
+        super(ChildStream, self).pre_sync()
+
     def fix_page_views(self, record):
         page_views = record["visitor_page_views"]["visitor_page_view"]
         if isinstance(page_views, dict):
