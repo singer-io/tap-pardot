@@ -449,10 +449,8 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
         self.parent_bookmark = self.get_bookmark('parent_bookmark')
 
         if self.parent_bookmark is None:
-            updated_at = self.parent_bookmark = self.get_bookmark('updated_at')
-
             self.parent_bookmark = {"bookmarks": {
-                self.parent_class.stream_name: {"updated_at": updated_at}}}
+                self.parent_class.stream_name: {"updated_at": self.get_bookmark('updated_at')}}}
 
             self.update_bookmark("parent_bookmark", self.parent_bookmark)
         super(ChildStream, self).pre_sync()
