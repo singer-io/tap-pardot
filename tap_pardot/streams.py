@@ -539,8 +539,19 @@ class Campaigns(UpdatedAtSortByIdReplicationStream):
     is_dynamic = False
 
 
-STREAM_OBJECTS = {
+STREAM_OBJECT_MAP = {
     cls.stream_name: cls
     for cls in globals().values()
     if inspect.isclass(cls) and issubclass(cls, Stream) and cls.stream_name
 }
+STREAM_OBJECTS = [
+    (stream_name, STREAM_OBJECT_MAP.pop(stream_name)) for stream_name in
+    [
+        'prospect_accounts', 'prospects',  'campaigns',  'visitor_activities',
+        'visits', 'email_clicks', 'opportunities', 'users', 'visitors',
+        'lists', 'list_memberships'
+    ]
+]
+if STREAM_OBJECT_MAP:
+    raise RuntimeError(
+        f"streams found that is not part of the ordered STREAM_OBJECTS: {list(STREAM_OBJECT_MAP.keys())}")

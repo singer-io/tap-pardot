@@ -7,11 +7,12 @@ LOGGER = singer.get_logger()
 
 
 def sync(client, config, state):
-    for stream_id in STREAM_OBJECTS:
-        stream_object = STREAM_OBJECTS.get(stream_id)(client, config, state)
+    for stream_id, stream_cls in STREAM_OBJECTS:
+        stream_object = stream_cls(client, config, state)
 
         if stream_object is None:
-            raise Exception("Attempted to sync unknown stream {}".format(stream_id))
+            raise Exception(
+                "Attempted to sync unknown stream {}".format(stream_id))
 
         LOGGER.info("Syncing stream: " + stream_id)
 
