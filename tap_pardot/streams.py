@@ -456,7 +456,10 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
         super(ChildStream, self).pre_sync()
 
     def fix_page_views(self, record):
-        page_views = record["visitor_page_views"]["visitor_page_view"]
+        page_views = (
+            record.get("visitor_page_views")
+            or {}
+        ).get("visitor_page_view")
         if isinstance(page_views, dict):
             record["visitor_page_views"]["visitor_page_view"] = [page_views]
 
