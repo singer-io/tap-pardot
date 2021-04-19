@@ -4,6 +4,7 @@ import singer
 
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from simplejson.scanner import JSONDecodeError
 
 LOGGER = singer.get_logger()
 
@@ -29,7 +30,15 @@ class Client:
     get_url = "{}/version/{}/do/query"
     describe_url = "{}/version/{}/do/describe"
 
-    def __init__(self, business_unit_id, client_id, client_secret, refresh_token, access_token="dummy", **kwargs):
+    def __init__(
+        self,
+        business_unit_id,
+        client_id,
+        client_secret,
+        refresh_token,
+        access_token="dummy",
+        **kwargs,
+    ):
         self.access_token = access_token
         self.refresh_token = refresh_token
         self.client_id = client_id
@@ -39,14 +48,17 @@ class Client:
 
     def _get_auth_header(self):
         return {
-            "Authorization": "Bearer " + self.access_token,
-            "Pardot-Business-Unit-Id": self.business_unit_id
+            "Authorization": f"Bearer {self.access_token}",
+            "Pardot-Business-Unit-Id": self.business_unit_id,
         }
 
     @backoff.on_exception(
         backoff.expo,
-        (requests.exceptions.Timeout,
-         requests.exceptions.ConnectionError, PardotException),
+        (
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+            PardotException,
+        ),
         jitter=None,
         max_tries=10,
     )
@@ -62,20 +74,29 @@ class Client:
         response = self.requests_session.request(
             method, url, headers=self._get_auth_header(), params=params, data=data
         )
-        content = response.json()
+        try:
+            content = response.json()
+        except JSONDecodeError as err:
+            LOGGER.exception(
+                f"{response.request.method} {response.request.url}: {response.status_code}: {response.text}"
+            )
+            raise err
         error_description = content.get("err", None) or {}
         error_code = None
         if isinstance(error_description, dict):
-            error_code = error_description.get(
-                "@attributes", {}).get("err_code")
-        elif isinstance(error_description, str) and 'access_token is invalid' in error_description.lower():
+            error_code = error_description.get("@attributes", {}).get("err_code")
+        elif (
+            isinstance(error_description, str)
+            and "access_token is invalid" in error_description.lower()
+        ):
             LOGGER.info(f"auth error: {error_description}")
             error_code = 184
 
         if error_code == 184:
             # https://developer.pardot.com/kb/error-codes-messages/#error-code-184
             LOGGER.info(
-                "Access_token is invalid, unknown, or malformed -- refreshing token once")
+                "Access_token is invalid, unknown, or malformed -- refreshing token once"
+            )
             self._refresh_access_token()
             LOGGER.info("Token refresh success")
             response = self.requests_session.request(
@@ -95,17 +116,19 @@ class Client:
 
     def _refresh_access_token(self):
         url = "https://login.salesforce.com/services/oauth2/token"
-        data = {"grant_type": "refresh_token",
-                "client_id": self.client_id,
-                "client_secret": self.client_secret,
-                "refresh_token": self.refresh_token}
+        data = {
+            "grant_type": "refresh_token",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "refresh_token": self.refresh_token,
+        }
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
-        response = self.requests_session.post(
-            url, data=data, headers=headers).json()
+        response = self.requests_session.post(url, data=data, headers=headers).json()
         self.access_token = response.get("access_token")
         if not self.access_token:
             raise Exception(
-                f"Failed to refresh token, status:{response.status_code}, content: {response.text}")
+                f"Failed to refresh token, status:{response.status_code}, content: {response.text}"
+            )
 
     def describe(self, endpoint, **kwargs):
         url = (ENDPOINT_BASE + self.describe_url).format(endpoint, self.api_version)
