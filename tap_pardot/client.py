@@ -47,7 +47,7 @@ class Client:
 
     def _get_auth_header(self):
         return {
-            "Authorization": "Bearer " + self.access_token,
+            "Authorization": f"Bearer {self.access_token}",
             "Pardot-Business-Unit-Id": self.business_unit_id,
         }
 
