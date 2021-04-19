@@ -4,6 +4,7 @@ import singer
 
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+from simplejson.scanner import JSONDecodeError
 
 LOGGER = singer.get_logger()
 
@@ -73,7 +74,13 @@ class Client:
         response = self.requests_session.request(
             method, url, headers=self._get_auth_header(), params=params, data=data
         )
-        content = response.json()
+        try:
+            content = response.json()
+        except JSONDecodeError as err:
+            LOGGER.exception(
+                f"{response.request.method} {response.request.url}: {response.status_code}: {response.text}"
+            )
+            raise err
         error_description = content.get("err", None) or {}
         error_code = None
         if isinstance(error_description, dict):
