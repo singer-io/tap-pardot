@@ -2,9 +2,6 @@ import backoff
 import requests
 import singer
 
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
-
 LOGGER = singer.get_logger()
 
 AUTH_URL = "https://pi.pardot.com/api/login/version/3"
