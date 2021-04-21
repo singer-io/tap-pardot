@@ -73,6 +73,12 @@ class Client:
         response = self.requests_session.request(
             method, url, headers=self._get_auth_header(), params=params, data=data
         )
+
+        if response.status_code == 504:
+            raise PardotException(
+                message=f"504: gateway-timeout", response_content=response.text
+            )
+
         try:
             content = response.json()
         except ValueError as err:
