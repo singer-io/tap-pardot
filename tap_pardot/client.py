@@ -90,50 +90,23 @@ class Client:
             method, url, headers=self._get_auth_header(), params=params, data=data
         )
 
-        if response.status_code == 504:
-            raise PardotException(
-                message=f"504: gateway-timeout", response_content=response.text
-            )
-
-        try:
-            content = response.json()
-        except ValueError as err:
-            LOGGER.exception(
-                f"{response.request.method} {response.request.url}: {response.status_code}: {response.text}"
-            )
-            raise err
-        error_description = content.get("err", None) or {}
-        error_code = None
-        if isinstance(error_description, dict):
-            error_code = error_description.get("@attributes", {}).get("err_code")
-        elif (
-            isinstance(error_description, str)
-            and "access_token is invalid" in error_description.lower()
-        ):
-            LOGGER.info(f"auth error: {error_description}")
-            error_code = 184
-
-        if error_code == 184:
-            # https://developer.pardot.com/kb/error-codes-messages/#error-code-184
+        if response.status_code != 200:
             LOGGER.info(
-                "Access_token is invalid, unknown, or malformed -- refreshing token once"
+                "%s: %s",
+                response.status_code,
+                response.text,
             )
-            self._refresh_access_token()
-            LOGGER.info("Token refresh success")
-            response = self.requests_session.request(
-                method, url, headers=self._get_auth_header(), params=params
-            )
-            content = response.json()
-        elif error_description:
-            activity = activity or f"Making {method} request to {url}"
-            raise PardotException(
-                "Pardot returned error code {} while {}. Message: {}".format(
-                    error_code, activity, error_description
-                ),
-                content,
-            )
+            error, code = parse_error(response)
+            if "access_token is invalid" in error.lower() and code != 184:
+                code = 184
+
+            if code == 184:
+                self._refresh_access_token()
+
+            raise PardotException(response)
+
         response.raise_for_status()
-        return content
+        return response.json()
 
     def _refresh_access_token(self):
         url = "https://login.salesforce.com/services/oauth2/token"
