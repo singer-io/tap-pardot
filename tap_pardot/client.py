@@ -1,6 +1,7 @@
 import backoff
 import requests
 import singer
+from typing import Dict, Tuple, cast
 
 LOGGER = singer.get_logger()
 
@@ -8,10 +9,28 @@ AUTH_URL = "https://pi.pardot.com/api/login/version/3"
 ENDPOINT_BASE = "https://pi.pardot.com/api/"
 
 
+def parse_error(response: requests.Response) -> Tuple[str, int]:
+    error: str
+    code: int
+    if response.headers.get("content-type") != "application/json":
+        code = response.status_code
+        error = "PardotAPIError"
+    else:
+        data: Dict = response.json()
+        code = cast(int, data.get("@attributes", {}).get("err_code"))
+        error = cast(str, data.get("err"))
+
+    return error, code
+
+
 class PardotException(Exception):
-    def __init__(self, message, response_content):
-        self.code = response_content.get("@attributes", {}).get("err_code")
-        self.response = response_content
+    def __init__(self, response: requests.Response):
+        message, self.code = parse_error(response)
+
+        self.url = response.request.url
+        self.method = response.request.method
+        self.raw = response.text
+
         super().__init__(message)
 
 
