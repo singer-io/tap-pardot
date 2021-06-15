@@ -440,7 +440,7 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
             self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
             yield rec
     def format_parent_ids(self, parent_ids):
-        return ",".join(str(parent_id) for parent_id in parent_ids)
+        return ",".join(parent_ids)
 
 class Lists(UpdatedAtReplicationStream):
     stream_name = "lists"
