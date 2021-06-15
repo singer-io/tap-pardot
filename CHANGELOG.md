@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.0
+  * Alters Visitors stream to pull all visitors, not just "identified" visitors [#29](https://github.com/singer-io/tap-pardot/pull/29)
+
 ## 1.3.1
   * Changes error message [#24](https://github.com/singer-io/tap-pardot/pull/24)
 
