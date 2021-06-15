@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.3
+  * Reverts back to v1.3.1 PR [#36](https://github.com/singer-io/tap-pardot/pull/36)
+
 ## 1.4.2
   * Attempts to fix previous PR [#34](https://github.com/singer-io/tap-pardot/pull/34)
 
