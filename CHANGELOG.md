@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.2
+  * Attempts to fix previous PR [#34](https://github.com/singer-io/tap-pardot/pull/34)
+
 ## 1.4.1
   * Attempts to fix previous pr, only modifies `Visits` stream [#32](https://github.com/singer-io/tap-pardot/pull/32)
 
