@@ -298,7 +298,7 @@ class ChildStream(ComplexBookmarkStream):
         return {"offset": self.get_bookmark("offset")}
 
     def get_records(self, parent_ids):
-        params = {self.parent_id_param: ",".join([str(x) for x in parent_ids]), **self.get_params()}
+        params = {self.parent_id_param: parent_ids, **self.get_params()}
         data = self.client.post(self.endpoint, **params)
         self.update_bookmark("offset", params.get("offset", 0) + 200)
 
@@ -399,14 +399,6 @@ class Visitors(UpdatedAtReplicationStream):
     endpoint = "visitor"
 
     is_dynamic = False
-
-    def get_params(self):
-        return {
-            "updated_after": self.get_bookmark(),
-            "sort_by": "updated_at",
-            "sort_order": "ascending",
-            "only_identified": "false",
-        }
 
 
 class Visits(ChildStream, NoUpdatedAtSortingStream):

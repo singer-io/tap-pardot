@@ -105,7 +105,6 @@ venv.bak/
 
 catalog.json
 config.json
-configredshift.json
 state.json
 
 tests/__pycache__
