@@ -302,7 +302,10 @@ class ChildStream(ComplexBookmarkStream):
         super(ChildStream, self).post_sync()
 
     def get_params(self):
-        return {"offset": self.get_bookmark("offset")}
+        return {
+            "offset": self.get_bookmark("offset"),
+            "output": self.get_api_output_type(),
+        }
 
     def get_records(self, parent_ids):
         params = {self.parent_id_param: parent_ids, **self.get_params()}

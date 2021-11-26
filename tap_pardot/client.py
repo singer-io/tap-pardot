@@ -216,7 +216,7 @@ class Client:
     def describe(self, endpoint, **kwargs):
         url = (ENDPOINT_BASE + self.describe_url).format(endpoint, '{}')
 
-        params = {"format": "json", "output": "bulk", **kwargs}
+        params = {"format": "json", **kwargs}
 
         content = self._make_request("get", url, params)
 
