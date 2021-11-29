@@ -11,11 +11,11 @@ Singer tap for replicating Pardot data.
   "api_output_type": "bulk"
 }
 ```
-The `client_id` and `client_secret` keys are your OAuth Salesforce App secrets. The refresh_token is a secret created during the OAuth flow. For more info on the Pardot OAuth flow, visit the Pardot [API documentation](https://developer.salesforce.com/docs/marketing/pardot/guide/authentication.html).
+The `client_id` and `client_secret` keys are your OAuth Salesforce App secrets. The `refresh_token` is a secret created during the OAuth flow. For more info on the Pardot OAuth flow, visit the Pardot [API documentation](https://developer.salesforce.com/docs/marketing/pardot/guide/authentication.html).
 
-The `start_data` is used by the tap as a bound on the query request, for more information about the format check [Singer best practices for dates](https://github.com/singer-io/getting-started/blob/master/docs/BEST_PRACTICES.md#dates).
+The `start_date` is used by the tap as a bound on the query request, for more information about the format check [Singer best practices for dates](https://github.com/singer-io/getting-started/blob/master/docs/BEST_PRACTICES.md#dates).
 
-The `api_output_type` is used to define the output on the API call. The default is "bulk" (more information on the "bulk" output call on [Query the Pardot API](https://developer.salesforce.com/docs/marketing/pardot/guide/bulk-data-pull.html#query-the-pardot-api)). With the bulk API call, the call is optimized, on the other hand, it doesn't return additional data in the response (such as nested objects and custom fields). If additional data is needed, change this variable (to either "simple" or "full"), and add the additional data explicitly to the select statement.
+The `api_output_type` is used to define the output on the API call. The default is "bulk" (more information on the "bulk" output call on [Query the Pardot API](https://developer.salesforce.com/docs/marketing/pardot/guide/bulk-data-pull.html#query-the-pardot-api) and [Changing the api response format](https://developer.salesforce.com/docs/marketing/pardot/guide/version-3-4-overview.html#changing-the-api-response-format)). With the bulk API call, the call is optimized, on the other hand, it doesn't return additional data in the response (such as nested objects and custom fields). If additional data is needed, change this variable (to either "simple" or "full"), and add the additional data explicitly to the select statement.
 
 ---
 
