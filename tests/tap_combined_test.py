@@ -6,7 +6,6 @@ import unittest
 import tap_tester.connections as connections
 import tap_tester.runner as runner
 from tap_tester import menagerie
-from tap_tester.scenario import SCENARIOS
 
 from test_configuration import config
 
@@ -150,6 +149,3 @@ class TapCombinedTest(unittest.TestCase):
                 error_incremental_streams
             ),
         )
-
-
-SCENARIOS.add(TapCombinedTest)

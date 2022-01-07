@@ -368,6 +368,25 @@ class ProspectAccounts(UpdatedAtReplicationStream):
 
     is_dynamic = True
 
+    def parse_value(self, value, key):
+        if isinstance(value, dict) and 'value' in value:
+            return value.get('value')
+        else:
+            return value
+
+    def parse_record(self, record):
+        return {key: self.parse_value(value, key) for key, value in record.items()}
+
+    def get_records(self):
+        data = self.client.get(self.endpoint, **self.get_params())
+
+        if data["result"] is None or data["result"].get("total_results") == 0:
+            return []
+
+        records = [self.parse_record(record) for record in data["result"][self.data_key]]
+
+        return records
+
 
 class Prospects(UpdatedAtReplicationStream):
     stream_name = "prospects"
