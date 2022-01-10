@@ -368,14 +368,14 @@ class ProspectAccounts(UpdatedAtReplicationStream):
 
     is_dynamic = True
 
-    def parse_value(self, value, key):
+    def parse_value(self, value):
         if isinstance(value, dict) and 'value' in value:
             return value.get('value')
         else:
             return value
 
     def parse_record(self, record):
-        return {key: self.parse_value(value, key) for key, value in record.items()}
+        return {key: self.parse_value(value) for key, value in record.items()}
 
     def get_records(self):
         data = self.client.get(self.endpoint, **self.get_params())

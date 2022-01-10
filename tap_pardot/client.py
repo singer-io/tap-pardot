@@ -1,8 +1,7 @@
+from base64 import b64encode
 import backoff
 import requests
 import singer
-
-from base64 import b64encode
 
 LOGGER = singer.get_logger()
 
@@ -21,8 +20,7 @@ class Pardot89Error(Exception):
     pass
 
 class AuthCredsMissingError(Exception):
-    def __init__(self, message):
-        super().__init__(message)
+    pass
 
 class PardotException(Exception):
     def __init__(self, message, response_content):

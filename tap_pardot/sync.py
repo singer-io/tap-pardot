@@ -1,5 +1,5 @@
 import singer
-from singer import Transformer, metadata, utils
+from singer import Transformer, metadata
 
 from .streams import STREAM_OBJECTS
 
@@ -24,7 +24,7 @@ def sync(client, config, state, catalog):
             stream_object.replication_keys,
         )
 
-        LOGGER.info("Syncing stream: " + stream_id)
+        LOGGER.info("Syncing stream: %s", stream_id)
 
         with Transformer() as transformer:
             for rec in stream_object.sync():
