@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.4
+  * Dependabot update [#41](https://github.com/singer-io/tap-pardot/pull/41)
+
 ## 1.4.3
   * Reverts back to v1.3.1 PR [#36](https://github.com/singer-io/tap-pardot/pull/36)
 
