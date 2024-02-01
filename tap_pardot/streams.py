@@ -326,7 +326,7 @@ class ChildStream(ComplexBookmarkStream):
 
     def sync(self):
         self.pre_sync()
-
+        # pylint: disable=E1102
         parent = self.parent_class(
             self.client, self.config, self.parent_bookmark, emit=False
         )
