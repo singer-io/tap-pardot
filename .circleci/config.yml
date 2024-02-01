@@ -11,6 +11,7 @@ jobs:
             python3 -mvenv /usr/local/share/virtualenvs/tap-pardot
             source /usr/local/share/virtualenvs/tap-pardot/bin/activate
             pip install -U 'pip==22.2.2' 'setuptools==65.3.0'
+            pip install -U pylint
             pip install .[dev]
       - run:
           name: 'JSON Validator'
