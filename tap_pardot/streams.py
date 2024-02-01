@@ -387,11 +387,8 @@ class Prospects(UpdatedAtReplicationStream):
                 break
             offset += 200
             yield from records[self.data_key]
-        return
 
     def sync(self):
-        # temp: removed the orignal sync implementation
-        # as facing issue with duplicate records
         self.pre_sync()
         for rec in self.sync_page():
             yield rec
