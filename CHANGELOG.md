@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.5
+  * Prospects Stream Fix Pagination [#42](https://github.com/singer-io/tap-pardot/pull/42)
+
 ## 1.4.4
   * Dependabot update [#41](https://github.com/singer-io/tap-pardot/pull/41)
 
