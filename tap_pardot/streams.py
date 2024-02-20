@@ -326,7 +326,7 @@ class ChildStream(ComplexBookmarkStream):
 
     def sync(self):
         self.pre_sync()
-        # pylint: disable=E1102
+
         parent = self.parent_class(
             self.client, self.config, self.parent_bookmark, emit=False
         )
@@ -375,24 +375,6 @@ class Prospects(UpdatedAtReplicationStream):
     endpoint = "prospect"
 
     is_dynamic = False
-
-    def get_records(self):
-        offset = 0
-        params = self.get_params()
-        while True:
-            params["offset"] = offset
-            data = self.client.get(self.endpoint, **params)
-            records = data["result"]
-            if not records:
-                break
-            offset += 200
-            yield from records[self.data_key]
-
-    def sync(self):
-        self.pre_sync()
-        for rec in self.sync_page():
-            yield rec
-        self.post_sync()
 
 
 class Opportunities(NoUpdatedAtSortingStream):
