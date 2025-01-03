@@ -3,13 +3,13 @@ from setuptools import setup
 
 setup(
     name="tap-pardot",
-    version="1.4.6",
+    version="1.4.7",
     description="Singer.io tap for extracting data",
     author="Stitch",
     url="http://singer.io",
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["tap_pardot"],
-    install_requires=["singer-python==5.8.0", "requests==2.32.0", "backoff==1.8.0"],
+    install_requires=["singer-python==5.8.0", "requests==2.32.3", "backoff==1.8.0"],
     entry_points="""
     [console_scripts]
     tap-pardot=tap_pardot:main

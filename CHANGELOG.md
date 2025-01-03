@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.7
+  * Bump requests from 2.31.0 to 2.32.3 [#45](https://github.com/singer-io/tap-pardot/pull/45)
+
 ## 1.4.6
   * Revert P.R #42 [#44](https://github.com/singer-io/tap-pardot/pull/44)
 
