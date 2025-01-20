@@ -57,7 +57,7 @@ class Client:
 
     def __init__(self, creds):
         self.creds = creds
-        self.api_version = "4"
+        self.api_version = "5"
         if self.has_oauth_values():
             self.refresh_credentials()
         elif self.has_api_key_auth_values():
