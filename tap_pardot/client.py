@@ -216,7 +216,7 @@ class Client:
     def describe(self, endpoint, **kwargs):
         url = (ENDPOINT_BASE + self.describe_url).format(endpoint, '{}')
 
-        params = {"format": "json", "output": "bulk", **kwargs}
+        params = {"format": "json", **kwargs}
 
         content = self._make_request("get", url, params)
 
@@ -236,7 +236,7 @@ class Client:
             base_formatting.extend(format_params)
         url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
 
-        params = {"format": "json", "output": "bulk", **kwargs}
+        params = {"format": "json", **kwargs}
 
         content = self._make_request(method, url, params)
 
