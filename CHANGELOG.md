@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.8
+  * Bump dependency versions for twistlock compliance [#48](https://github.com/singer-io/tap-pardot/pull/48)
+
 ## 1.4.7
   * Bump requests from 2.31.0 to 2.32.3 [#45](https://github.com/singer-io/tap-pardot/pull/45)
 
