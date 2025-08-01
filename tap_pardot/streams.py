@@ -30,6 +30,9 @@ class Stream:
     def get_params(self):
         return {}
 
+    def get_api_output_type(self):
+        return self.config.get("api_output_type", "bulk")
+
     def get_bookmark(self):
         return (
             singer.bookmarks.get_bookmark(
@@ -116,6 +119,7 @@ class IdReplicationStream(Stream):
     def get_params(self):
         return {
             "created_after": self.config["start_date"],
+            "output": self.get_api_output_type(),
             "id_greater_than": self.get_bookmark(),
             "sort_by": "id",
             "sort_order": "ascending",
@@ -139,6 +143,7 @@ class UpdatedAtReplicationStream(Stream):
     def get_params(self):
         return {
             "updated_after": self.get_bookmark(),
+            "output": self.get_api_output_type(),
             "sort_by": "updated_at",
             "sort_order": "ascending",
         }
@@ -209,6 +214,7 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
     def get_params(self):
         return {
             "created_after": self.config["start_date"],
+            "output": self.get_api_output_type(),
             "id_greater_than": self.get_bookmark("id"),
             "sort_by": "id",
             "sort_order": "ascending",
@@ -265,6 +271,7 @@ class UpdatedAtSortByIdReplicationStream(ComplexBookmarkStream):
     def get_params(self):
         return {
             "id_greater_than": self.get_bookmark("id"),
+            "output": self.get_api_output_type(),
             "updated_after": self.get_bookmark("last_updated"),
             "sort_by": "id",
             "sort_order": "ascending",
@@ -295,7 +302,10 @@ class ChildStream(ComplexBookmarkStream):
         super(ChildStream, self).post_sync()
 
     def get_params(self):
-        return {"offset": self.get_bookmark("offset")}
+        return {
+            "offset": self.get_bookmark("offset"),
+            "output": self.get_api_output_type(),
+        }
 
     def get_records(self, parent_ids):
         params = {self.parent_id_param: parent_ids, **self.get_params()}
@@ -459,6 +469,7 @@ class ListMemberships(ChildStream, NoUpdatedAtSortingStream):
             # filter by updated_after
             "updated_after": self.get_bookmark("updated_at")
             or self.config["start_date"],
+            "output": self.get_api_output_type(),
             "id_greater_than": self.get_bookmark("id") or 0,
             "sort_by": "id",
             "sort_order": "ascending",
