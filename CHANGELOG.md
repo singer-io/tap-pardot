@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.9
+## 1.5.0
   * Libraries Version Update [#51](https://github.com/singer-io/tap-pardot/pull/51)
 
 ## 1.4.8
