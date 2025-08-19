@@ -11,7 +11,7 @@ setup(
     py_modules=["tap_pardot"],
     install_requires=[
         "singer-python==6.1.1",
-        "requests==2.32.4",
+        "requests==2.32.5",
         "backoff==2.2.1"
     ],
     entry_points="""
