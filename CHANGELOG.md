@@ -1,7 +1,7 @@
 # Changelog
 
 ## 1.5.0
-  * Libraries Version Update [#51](https://github.com/singer-io/tap-pardot/pull/51)
+  * Library version upgrades [#51](https://github.com/singer-io/tap-pardot/pull/51)
 
 ## 1.4.8
   * Bump dependency versions for twistlock compliance [#48](https://github.com/singer-io/tap-pardot/pull/48)
