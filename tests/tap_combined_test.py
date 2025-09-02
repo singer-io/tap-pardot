@@ -150,6 +150,7 @@ class TapCombinedTest(unittest.TestCase):
                 error_incremental_streams
             ),
         )
+        self.assertTrue(False, msg="This test is running")
 
 
 SCENARIOS.add(TapCombinedTest)
