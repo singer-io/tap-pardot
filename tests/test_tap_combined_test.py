@@ -68,9 +68,6 @@ class TapCombinedTest(unittest.TestCase):
             if os.getenv(creds[cred]) == None:
                 missing_envs.append(cred)
 
-        import ipdb; ipdb.set_trace()
-        1+1
-
         if len(missing_envs) != 0:
             raise Exception("set " + ", ".join(missing_envs))
 
@@ -150,7 +147,6 @@ class TapCombinedTest(unittest.TestCase):
                 error_incremental_streams
             ),
         )
-        self.assertTrue(False, msg="This test is running")
 
 
 SCENARIOS.add(TapCombinedTest)
