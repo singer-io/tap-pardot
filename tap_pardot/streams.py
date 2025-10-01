@@ -408,7 +408,7 @@ class Visitors(UpdatedAtReplicationStream):
             "updated_after": self.get_bookmark(),
             "sort_by": "updated_at",
             "sort_order": "ascending",
-            "only_identified":"false"
+            "only_identified": "false"
         }
 
 class Visits(ChildStream, NoUpdatedAtSortingStream):
@@ -427,7 +427,7 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
             record["visitor_page_views"]["visitor_page_view"] = [page_views]
 
     def format_parent_ids(self, parent_ids):
-        return ",".join(str(i) for i in parent_ids)
+        return ",".join(str(_id) for _id in parent_ids)
 
     def sync_page(self, parent_ids):
         """
