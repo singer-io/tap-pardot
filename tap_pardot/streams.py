@@ -298,7 +298,7 @@ class ChildStream(ComplexBookmarkStream):
         return {"offset": self.get_bookmark("offset")}
 
     def get_records(self, parent_ids):
-        params = {self.parent_id_param: str(parent_ids), **self.get_params()}
+        params = {self.parent_id_param: self.format_parent_ids(parent_ids), **self.get_params()}
         data = self.client.post(self.endpoint, **params)
         self.update_bookmark("offset", params.get("offset", 0) + 200)
 
@@ -310,6 +310,9 @@ class ChildStream(ComplexBookmarkStream):
             records = [records]
 
         return records
+
+    def format_parent_ids(self, parent_ids):
+        return parent_ids
 
     def sync_page(self, parent_ids):
         for rec in self.get_records(parent_ids):
@@ -422,6 +425,9 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
         page_views = record["visitor_page_views"]["visitor_page_view"]
         if isinstance(page_views, dict):
             record["visitor_page_views"]["visitor_page_view"] = [page_views]
+
+    def format_parent_ids(self, parent_ids):
+        return ",".join(str(i) for i in parent_ids)
 
     def sync_page(self, parent_ids):
         """
