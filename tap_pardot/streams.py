@@ -310,7 +310,7 @@ class ChildStream(ComplexBookmarkStream):
         return records
 
 
-    def sync_page(self):
+    def sync_page(self, parent_ids):
         for rec in self.get_records():
             yield rec
 
