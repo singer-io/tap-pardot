@@ -281,6 +281,7 @@ class UpdatedAtSortByIdReplicationStream(ComplexBookmarkStream):
 class ChildStream(ComplexBookmarkStream):
     parent_class = None
     parent_id_param = None
+    parent_ids = None
 
     def pre_sync(self):
         self.parent_bookmark = self.get_bookmark("parent_bookmark")
@@ -294,11 +295,8 @@ class ChildStream(ComplexBookmarkStream):
         self.clear_bookmark("parent_bookmark")
         super(ChildStream, self).post_sync()
 
-    def get_params(self):
-        return {"offset": self.get_bookmark("offset")}
-
-    def get_records(self, parent_ids):
-        params = {self.parent_id_param: self.format_parent_ids(parent_ids), **self.get_params()}
+    def get_records(self):
+        params = self.get_params()
         data = self.client.post(self.endpoint, **params)
         self.update_bookmark("offset", params.get("offset", 0) + 200)
 
@@ -311,11 +309,9 @@ class ChildStream(ComplexBookmarkStream):
 
         return records
 
-    def format_parent_ids(self, parent_ids):
-        return parent_ids
 
-    def sync_page(self, parent_ids):
-        for rec in self.get_records(parent_ids):
+    def sync_page(self):
+        for rec in self.get_records():
             yield rec
 
     def get_parent_ids(self, parent):
@@ -426,8 +422,11 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
         if isinstance(page_views, dict):
             record["visitor_page_views"]["visitor_page_view"] = [page_views]
 
-    def format_parent_ids(self, parent_ids):
-        return ",".join(str(_id) for _id in parent_ids)
+    def get_params(self):
+        return {
+            "offset": self.get_bookmark("offset"),
+            self.parent_id_param: ",".join(str(_id) for _id in self.parent_ids)
+        }
 
     def sync_page(self, parent_ids):
         """
@@ -435,7 +434,8 @@ class Visits(ChildStream, NoUpdatedAtSortingStream):
 
         This is handled in ChildStream base class.
         """
-        for rec in self.get_records(parent_ids):
+        self.parent_ids = parent_ids
+        for rec in self.get_records():
             if rec["updated_at"] <= self.last_updated_at:
                 continue
             self.fix_page_views(rec)
@@ -475,6 +475,7 @@ class ListMemberships(ChildStream, NoUpdatedAtSortingStream):
             "id_greater_than": self.get_bookmark("id") or 0,
             "sort_by": "id",
             "sort_order": "ascending",
+            self.parent_id_param: self.parent_ids
         }
 
     def get_parent_ids(self, parent):
@@ -492,7 +493,8 @@ class ListMemberships(ChildStream, NoUpdatedAtSortingStream):
     def sync_page(self, parent_id):
         """ListMemberships use id to paginate through, so we override ChildStream
         behavior."""
-        for rec in self.get_records(parent_id):
+        self.parent_ids = parent_id
+        for rec in self.get_records():
             if rec["updated_at"] <= self.last_updated_at:
                 continue
             self.max_updated_at = max(self.max_updated_at, rec["updated_at"])
