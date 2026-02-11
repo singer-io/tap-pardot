@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.0
+  * Added `parent-tap-stream-id` metadata, Updated Integration Tests [#54](https://github.com/singer-io/tap-pardot/pull/54)
+
 ## 1.4.9
   * Update Visitors stream to pull all visitors, not just "identified" visitors [53](https://github.com/singer-io/tap-pardot/pull/53)
   * Pass comma separated visitor_ids to fetch visits.
