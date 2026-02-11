@@ -111,7 +111,7 @@ class TapCombinedTest(unittest.TestCase):
             stream_id = catalog["tap_stream_id"]
             
             # Get the annotated schema to access metadata
-            schema_and_metadata = menagerie.get_annotated_schema(conn_id, catalog['stream_id'])
+            schema_and_metadata = menagerie.get_annotated_schema(conn_id, stream_id)
             metadata = schema_and_metadata["metadata"]
             
             # Get the top-level breadcrumb metadata
