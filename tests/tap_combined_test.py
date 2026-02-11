@@ -33,6 +33,13 @@ class TapCombinedTest(unittest.TestCase):
 
     def expected_pks(self):
         return config["streams"]
+    
+    def expected_parent_streams(self):
+        """Return a mapping of child streams to their expected parent streams."""
+        return {
+            "list_memberships": "lists",
+            "visits": "visitors",
+        }
 
     def get_properties(self):
         """Configuration properties required for the tap."""
@@ -98,6 +105,27 @@ class TapCombinedTest(unittest.TestCase):
         self.assertTrue(
             subset, msg="Expected check streams are not subset of discovered catalog"
         )
+        
+        # Validate parent stream ids
+        for catalog in found_catalogs:
+            stream_id = catalog["tap_stream_id"]
+            
+            # Get the annotated schema to access metadata
+            schema_and_metadata = menagerie.get_annotated_schema(conn_id, catalog['stream_id'])
+            metadata = schema_and_metadata["metadata"]
+            
+            # Get the top-level breadcrumb metadata
+            stream_properties = [item for item in metadata if item.get("breadcrumb") == []]
+            if stream_properties:
+                actual_parent_stream = stream_properties[0].get("metadata", {}).get("parent-tap-stream-id")
+                expected_parent_stream = self.expected_parent_streams().get(stream_id)
+                
+                self.assertEqual(
+                    expected_parent_stream,
+                    actual_parent_stream,
+                    msg=f"Expected parent-tap-stream-id to be {expected_parent_stream} for stream {stream_id}, but got {actual_parent_stream}",
+                )
+
         #
         # # Select some catalogs
         our_catalogs = [
