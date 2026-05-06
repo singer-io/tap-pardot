@@ -76,6 +76,11 @@ class TestSync(unittest.TestCase):
             sync(client, config, state, mock_catalog)
 
         self.assertEqual(mock_write_record.call_count, 3)
+        # Verify correct stream_id and record data passed to write_record
+        written_stream_ids = [call[0][0] for call in mock_write_record.call_args_list]
+        self.assertTrue(all(sid == "campaigns" for sid in written_stream_ids))
+        written_records = [call[0][1] for call in mock_write_record.call_args_list]
+        self.assertEqual(written_records, [{"id": 1}, {"id": 2}, {"id": 3}])
 
     @patch("tap_pardot.sync.singer.write_record")
     @patch("tap_pardot.sync.singer.write_schema")
@@ -103,15 +108,21 @@ class TestSync(unittest.TestCase):
         state = {}
 
         with patch("tap_pardot.sync.STREAM_OBJECTS") as mock_stream_objects:
-            mock_instance = MagicMock()
-            mock_instance.key_properties = ["id"]
-            mock_instance.replication_keys = ["updated_at"]
-            mock_instance.sync.return_value = iter([{"id": 1}])
-            mock_stream_objects.get.return_value = MagicMock(return_value=mock_instance)
+            mock_instance1 = MagicMock()
+            mock_instance1.key_properties = ["id"]
+            mock_instance1.replication_keys = ["updated_at"]
+            mock_instance1.sync.return_value = iter([{"id": 1}])
+            mock_instance2 = MagicMock()
+            mock_instance2.key_properties = ["id"]
+            mock_instance2.replication_keys = ["updated_at"]
+            mock_instance2.sync.return_value = iter([{"id": 2}])
+            factory = MagicMock(side_effect=[mock_instance1, mock_instance2])
+            mock_stream_objects.get.return_value = factory
 
             sync(client, config, state, mock_catalog)
 
         self.assertEqual(mock_write_schema.call_count, 2)
+        self.assertEqual(mock_write_record.call_count, 2)
 
     @patch("tap_pardot.sync.singer.write_record")
     @patch("tap_pardot.sync.singer.write_schema")

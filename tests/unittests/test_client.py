@@ -323,6 +323,8 @@ class TestClientMakeRequest(unittest.TestCase):
 
         result = client._make_request("get", "https://pi.pardot.com/api/prospect/version/{}/do/query")
         mock_login.assert_called_once()
+        # Verify the second request's response is returned after re-auth
+        self.assertEqual(result, {"result": {"total_results": 1}})
 
     @patch("tap_pardot.client.requests.request")
     def test_make_request_error_code_89_switches_version(self, mock_request):
@@ -360,6 +362,12 @@ class TestClientDescribe(unittest.TestCase):
 
             result = client.describe("prospect")
             self.assertIn("result", result)
+            # Verify _make_request was called with correct URL pattern and params
+            call_args = mock_make_request.call_args
+            self.assertEqual(call_args[0][0], "get")
+            self.assertIn("prospect/version/{}/do/describe", call_args[0][1])
+            self.assertEqual(call_args[0][2]["format"], "json")
+            self.assertEqual(call_args[0][2]["output"], "bulk")
 
     @patch("tap_pardot.client.Client._make_request")
     def test_describe_error_raises_exception(self, mock_make_request):
@@ -397,6 +405,12 @@ class TestClientGetPost(unittest.TestCase):
 
             result = client.get("prospect", sort_by="id")
             self.assertEqual(result["result"]["total_results"], 2)
+            # Verify _make_request called with GET method
+            call_args = mock_make_request.call_args
+            self.assertEqual(call_args[0][0], "get")
+            self.assertIn("prospect/version/{}/do/query", call_args[0][1])
+            # Verify sort_by kwarg is passed as param
+            self.assertEqual(call_args[0][2]["sort_by"], "id")
 
     @patch("tap_pardot.client.Client._make_request")
     def test_post_success(self, mock_make_request):
@@ -413,6 +427,12 @@ class TestClientGetPost(unittest.TestCase):
 
             result = client.post("visit", visitor_ids="1,2,3")
             self.assertEqual(result["result"]["total_results"], 1)
+            # Verify _make_request called with POST method
+            call_args = mock_make_request.call_args
+            self.assertEqual(call_args[0][0], "post")
+            self.assertIn("visit/version/{}/do/query", call_args[0][1])
+            # Verify visitor_ids kwarg is passed as param
+            self.assertEqual(call_args[0][2]["visitor_ids"], "1,2,3")
 
 
 class TestClientAuthHeaders(unittest.TestCase):

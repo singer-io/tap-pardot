@@ -1,10 +1,12 @@
-"""Test that automatic fields are always replicated regardless of selection."""
+"""Test that with no fields selected for a stream automatic fields are still
+replicated."""
 from base import PardotBaseTest
-from tap_tester.base_suite_tests.automatic_fields_test import AutomaticFieldsTest
+from tap_tester.base_suite_tests.automatic_fields_test import MinimumSelectionTest
 
 
-class PardotAutomaticFieldsTest(AutomaticFieldsTest, PardotBaseTest):
-    """Test that automatic fields (pk, replication keys) are always replicated."""
+class PardotAutomaticFieldsTest(MinimumSelectionTest, PardotBaseTest):
+    """Test that with no fields selected for a stream automatic fields are
+    still replicated."""
 
     @staticmethod
     def name():

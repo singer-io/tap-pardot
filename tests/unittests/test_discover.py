@@ -107,7 +107,7 @@ class TestLoadSchemas(unittest.TestCase):
         schemas = _load_schemas(client)
 
         self.assertIn("prospect_accounts", schemas)
-        client.describe.assert_called_once()
+        client.describe.assert_called_once_with("prospectAccount")
         # Verify dynamic fields are merged
         self.assertIn("custom_field_1", schemas["prospect_accounts"]["properties"])
 
