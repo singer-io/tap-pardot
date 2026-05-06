@@ -9,7 +9,19 @@ setup(
     url="http://singer.io",
     classifiers=["Programming Language :: Python :: 3 :: Only"],
     py_modules=["tap_pardot"],
-    install_requires=["singer-python==5.13.2", "requests==2.32.4", "backoff==1.10.0"],
+    install_requires=[
+        "singer-python==6.3.0",
+        "requests==2.32.5",
+        "backoff==2.2.1",
+      ],
+    extras_require={
+          'dev': [
+              'pylint',
+              'pytest',
+              'coverage',
+              'parameterized',
+          ],
+      },
     entry_points="""
     [console_scripts]
     tap-pardot=tap_pardot:main
