@@ -2,13 +2,6 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from tap_pardot.streams import (
-    Stream,
-    IdReplicationStream,
-    UpdatedAtReplicationStream,
-    ComplexBookmarkStream,
-    NoUpdatedAtSortingStream,
-    UpdatedAtSortByIdReplicationStream,
-    ChildStream,
     EmailClicks,
     VisitorActivities,
     ProspectAccounts,

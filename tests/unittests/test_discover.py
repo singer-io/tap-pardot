@@ -1,10 +1,8 @@
-import json
 import os
 import unittest
 from unittest.mock import MagicMock, patch, mock_open
 
 from tap_pardot.discover import discover, _load_schemas, _get_abs_path, _parse_schema_description
-from tap_pardot.streams import STREAM_OBJECTS
 
 
 class TestDiscover(unittest.TestCase):

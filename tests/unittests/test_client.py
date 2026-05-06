@@ -1,8 +1,7 @@
 import unittest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
 import requests
-from parameterized import parameterized
 
 from tap_pardot.client import (
     Client,
