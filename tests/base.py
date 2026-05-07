@@ -1,7 +1,6 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
-import pytz
 from tap_tester import menagerie, runner
 from tap_tester.logger import LOGGER
 from tap_tester.base_suite_tests.base_case import BaseCase
@@ -142,7 +141,7 @@ class PardotBaseTest(BaseCase):
             try:
                 date_stripped = datetime.strptime(date_value, date_format)
                 if date_stripped.tzinfo is None:
-                    date_stripped = date_stripped.replace(tzinfo=pytz.UTC)
+                    date_stripped = date_stripped.replace(tzinfo=timezone.utc)
                 return date_stripped
             except ValueError:
                 pass
