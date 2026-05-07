@@ -51,6 +51,7 @@ class Client:
     api_version = None
     api_key = None
     creds = None
+    endpoint_base = ENDPOINT_BASE
 
     get_url = "{}/version/{}/do/query"
     describe_url = "{}/version/{}/do/describe"
@@ -58,6 +59,7 @@ class Client:
     def __init__(self, creds):
         self.creds = creds
         self.api_version = "4"
+        self.endpoint_base = creds.get('pardot_api_url', ENDPOINT_BASE)
         if self.has_oauth_values():
             self.refresh_credentials()
         elif self.has_api_key_auth_values():
@@ -214,7 +216,7 @@ class Client:
         giveup=is_not_retryable_pardot_exception,
     )
     def describe(self, endpoint, **kwargs):
-        url = (ENDPOINT_BASE + self.describe_url).format(endpoint, '{}')
+        url = (self.endpoint_base + self.describe_url).format(endpoint, '{}')
 
         params = {"format": "json", "output": "bulk", **kwargs}
 
@@ -234,7 +236,7 @@ class Client:
         base_formatting = [endpoint, '{}']
         if format_params:
             base_formatting.extend(format_params)
-        url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
+        url = (self.endpoint_base + self.get_url).format(*base_formatting)
 
         params = {"format": "json", "output": "bulk", **kwargs}
 

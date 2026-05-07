@@ -1,5 +1,7 @@
 import os
+from datetime import datetime
 
+import pytz
 from tap_tester import menagerie, runner
 from tap_tester.logger import LOGGER
 from tap_tester.base_suite_tests.base_case import BaseCase
@@ -116,7 +118,34 @@ class PardotBaseTest(BaseCase):
 
     def get_properties(self, original: bool = True):
         """Configuration of properties required for the tap."""
-        return {
+        properties = {
             "start_date": self.start_date,
             "pardot_business_unit_id": os.getenv("TAP_PARDOT_BUSINESS_UNIT_ID"),
         }
+        pardot_api_url = os.getenv("TAP_PARDOT_API_URL")
+        if pardot_api_url:
+            properties["pardot_api_url"] = pardot_api_url
+        return properties
+
+    @staticmethod
+    def parse_date(date_value):
+        """Override to handle Pardot's '%Y-%m-%d %H:%M:%S' date format."""
+        date_formats = {
+            "%Y-%m-%dT%H:%M:%S.%fZ",
+            "%Y-%m-%dT%H:%M:%S.Z",
+            "%Y-%m-%dT%H:%M:%S.%f%z",
+            "%Y-%m-%d",
+            "%Y-%m-%dT%H:%M:%S%z",
+            "%Y-%m-%d %H:%M:%S",
+        }
+        for date_format in date_formats:
+            try:
+                date_stripped = datetime.strptime(date_value, date_format)
+                if date_stripped.tzinfo is None:
+                    date_stripped = date_stripped.replace(tzinfo=pytz.UTC)
+                return date_stripped
+            except ValueError:
+                pass
+        raise NotImplementedError(
+            f"Tests do not account for dates of this format: {date_value}"
+        )
