@@ -56,10 +56,17 @@ class Client:
     get_url = "{}/version/{}/do/query"
     describe_url = "{}/version/{}/do/describe"
 
+    @staticmethod
+    def _normalize_endpoint_base(endpoint_base):
+        endpoint_base = (endpoint_base or ENDPOINT_BASE).strip()
+        return endpoint_base.rstrip('/') + '/'
+
     def __init__(self, creds):
         self.creds = creds
         self.api_version = "4"
-        self.endpoint_base = creds.get('pardot_api_url', ENDPOINT_BASE)
+        self.endpoint_base = self._normalize_endpoint_base(
+            creds.get('pardot_api_url', ENDPOINT_BASE)
+        )
         if self.has_oauth_values():
             self.refresh_credentials()
         elif self.has_api_key_auth_values():
