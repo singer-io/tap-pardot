@@ -121,6 +121,9 @@ class PardotBaseTest(BaseCase):
             "start_date": self.start_date,
             "pardot_business_unit_id": os.getenv("TAP_PARDOT_BUSINESS_UNIT_ID"),
         }
+        pardot_api_url = os.getenv("TAP_PARDOT_API_URL")
+        if pardot_api_url and not os.getenv("USE_STITCH_BACKEND"):
+            properties["pardot_api_url"] = pardot_api_url
         return properties
 
     @staticmethod
