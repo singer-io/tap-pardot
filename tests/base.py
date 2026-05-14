@@ -122,13 +122,9 @@ class PardotBaseTest(BaseCase):
             "pardot_business_unit_id": os.getenv("TAP_PARDOT_BUSINESS_UNIT_ID"),
         }
         pardot_api_url = os.getenv("TAP_PARDOT_API_URL")
-        if pardot_api_url and not os.getenv("USE_STITCH_BACKEND"):
+        if pardot_api_url:
             properties["pardot_api_url"] = pardot_api_url
 
-        LOGGER.info(f"Properties: pardot_business_unit_id={'SET' if properties.get('pardot_business_unit_id') else 'NOT SET'}, "
-                     f"pardot_api_url={'SET' if pardot_api_url else 'NOT SET'}, "
-                     f"USE_STITCH_BACKEND={'SET' if os.getenv('USE_STITCH_BACKEND') else 'NOT SET'}")
-        LOGGER.info(f"Final properties keys: {list(properties.keys())}")
         return properties
 
     @staticmethod
