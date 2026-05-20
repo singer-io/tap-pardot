@@ -30,10 +30,12 @@ jobs:
             mkdir -p test_output
             coverage run -m pytest --junitxml=test_output/report.xml tests/unittests
             coverage html
-      - store_test_results:
-          path: test_output
-      - store_artifacts:
-          path: htmlcov
+      - run:
+          name: "Mock Integration Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-pardot/bin/activate
+            uv pip install pytest
+            python -m pytest tests/mock_integration/ -v
       - run:
           name: 'Integration Tests'
           command: |
@@ -42,7 +44,11 @@ jobs:
             aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
             source dev_env.sh
             unset USE_STITCH_BACKEND
+            # Temporarily move mock_integration out of the tests/ tree so that
+            # run-test does not discover it
+            mv tests/mock_integration /tmp/mock_integration_backup
             run-test --tap=tap-pardot tests
+            mv /tmp/mock_integration_backup tests/mock_integration
 
 
 workflows:
