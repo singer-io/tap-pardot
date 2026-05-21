@@ -35,7 +35,8 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-pardot/bin/activate
             uv pip install pytest
-            python -m pytest tests/mock_integration/ -v
+            coverage run --append -m pytest tests/mock_integration/ -v
+            coverage report
       - run:
           name: 'Integration Tests'
           command: |
@@ -48,7 +49,10 @@ jobs:
             # run-test does not discover it
             mv tests/mock_integration /tmp/mock_integration_backup
             run-test --tap=tap-pardot tests
-            mv /tmp/mock_integration_backup tests/mock_integration
+      - run:
+          name: 'Restore mock_integration'
+          when: always
+          command: mv /tmp/mock_integration_backup tests/mock_integration || true
 
 
 workflows:

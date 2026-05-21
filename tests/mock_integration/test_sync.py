@@ -157,5 +157,140 @@ class TestSyncOutputSchemaConformance(PardotMockBaseTest, unittest.TestCase):
                               f"replication key '{rep_key}'")
 
 
+class TestParentChildStreamFlow(PardotMockBaseTest, unittest.TestCase):
+    """Verify parent-child stream dependency works correctly."""
+
+    def test_visits_uses_parent_visitor_ids(self):
+        """visits stream fetches visitor IDs from parent before sync."""
+        client = self._create_mock_client()
+        catalog = self.run_discover(client)
+        catalog = self.select_streams(catalog, {'visits'})
+        messages = self.run_sync(client, catalog)
+
+        # Verify client.get was called for the parent (visitors endpoint)
+        get_calls = [call for call in client.get.call_args_list
+                     if call[0][0] == 'visitor']
+        self.assertGreater(len(get_calls), 0,
+                           "visits stream should fetch parent visitors via client.get()")
+
+        # Verify client.post was called for visits with visitor_ids param
+        post_calls = [call for call in client.post.call_args_list
+                      if call[0][0] == 'visit']
+        self.assertGreater(len(post_calls), 0,
+                           "visits stream should call client.post('visit', ...)")
+        # Check that visitor_ids param was passed
+        for call in post_calls:
+            self.assertIn('visitor_ids', call[1],
+                          "visits post call should include 'visitor_ids' param")
+            # visitor_ids should be comma-separated string of parent IDs
+            self.assertIsInstance(call[1]['visitor_ids'], str)
+
+    def test_list_memberships_uses_parent_list_ids(self):
+        """list_memberships stream fetches list IDs from parent before sync."""
+        client = self._create_mock_client()
+        catalog = self.run_discover(client)
+        catalog = self.select_streams(catalog, {'list_memberships'})
+        messages = self.run_sync(client, catalog)
+
+        # Verify client.get was called for the parent (lists endpoint)
+        get_calls = [call for call in client.get.call_args_list
+                     if call[0][0] == 'list']
+        self.assertGreater(len(get_calls), 0,
+                           "list_memberships should fetch parent lists via client.get()")
+
+        # Verify client.post was called for listMembership
+        post_calls = [call for call in client.post.call_args_list
+                      if call[0][0] == 'listMembership']
+        self.assertGreater(len(post_calls), 0,
+                           "list_memberships should call client.post('listMembership', ...)")
+
+
+class TestVisitsFixPageViews(PardotMockBaseTest, unittest.TestCase):
+    """Verify visits.fix_page_views() normalizes data in full pipeline."""
+
+    def test_single_page_view_dict_normalized_to_list(self):
+        """A single page_view dict is wrapped in a list during sync."""
+        gen = self.get_mock_data_generator()
+
+        # Create visit records where visitor_page_views has a single dict
+        # (not a list) - this is the Pardot API quirk fix_page_views handles
+        visit_records = gen.generate_records('visits', count=2)
+        for i, rec in enumerate(visit_records):
+            rec['id'] = i + 1
+            rec['updated_at'] = f'2024-06-{16 + i:02d}T10:00:00Z'
+            # Simulate Pardot returning a single page view as a dict (not list)
+            rec['visitor_page_views'] = {
+                'visitor_page_view': {
+                    'id': 100 + i,
+                    'url': f'https://example.com/page-{i}',
+                    'title': f'Page {i}',
+                    'created_at': '2024-06-15T10:00:00Z',
+                }
+            }
+
+        # Set up visitors (parent) with matching data
+        visitor_records = gen.generate_records('visitors', count=2)
+        for i, rec in enumerate(visitor_records):
+            rec['id'] = i + 1
+            rec['updated_at'] = f'2024-06-{16 + i:02d}T10:00:00Z'
+
+        stream_records = self._get_default_stream_records()
+        stream_records['visits'] = visit_records
+        stream_records['visitors'] = visitor_records
+
+        client = self._create_mock_client(stream_records=stream_records)
+        catalog = self.run_discover(client)
+        catalog = self.select_streams(catalog, {'visits'})
+        messages = self.run_sync(client, catalog)
+
+        records = self.get_records_from_messages(messages, 'visits')
+        self.assertGreater(len(records), 0)
+        for rec in records:
+            page_views = rec['visitor_page_views']['visitor_page_view']
+            self.assertIsInstance(page_views, list,
+                                 "fix_page_views should normalize single dict to list")
+            self.assertGreater(len(page_views), 0)
+
+
+class TestZeroRecordStreams(PardotMockBaseTest, unittest.TestCase):
+    """Verify streams with zero records emit SCHEMA but no RECORD messages."""
+
+    def test_zero_records_emits_schema_only(self):
+        """A stream with no API data emits SCHEMA message but no RECORDs."""
+        stream_records = self._get_default_stream_records()
+        stream_records['email_clicks'] = []
+
+        client = self._create_mock_client(stream_records=stream_records)
+        catalog = self.run_discover(client)
+        catalog = self.select_streams(catalog, {'email_clicks'})
+        messages = self.run_sync(client, catalog)
+
+        schemas = self.get_schema_messages(messages, 'email_clicks')
+        self.assertEqual(len(schemas), 1, "Should emit SCHEMA even with no data")
+
+        records = self.get_records_from_messages(messages, 'email_clicks')
+        self.assertEqual(len(records), 0, "Should emit no RECORDs with empty data")
+
+    def test_zero_records_multiple_streams(self):
+        """Multiple streams with no data all emit SCHEMA but no RECORDs."""
+        stream_records = self._get_default_stream_records()
+        empty_streams = {'email_clicks', 'visitor_activities', 'opportunities'}
+        for s in empty_streams:
+            stream_records[s] = []
+
+        client = self._create_mock_client(stream_records=stream_records)
+        catalog = self.run_discover(client)
+        catalog = self.select_streams(catalog, empty_streams)
+        messages = self.run_sync(client, catalog)
+
+        for stream in empty_streams:
+            schemas = self.get_schema_messages(messages, stream)
+            self.assertEqual(len(schemas), 1,
+                             f"{stream} should emit SCHEMA")
+            records = self.get_records_from_messages(messages, stream)
+            self.assertEqual(len(records), 0,
+                             f"{stream} should emit no RECORDs")
+
+
 if __name__ == '__main__':
     unittest.main()

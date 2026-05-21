@@ -73,6 +73,24 @@ class PardotMockBaseTest:
     def _empty_response(self):
         return {'result': None}
 
+    def _get_default_stream_records(self):
+        """Generate default stream records dict (can be modified before passing
+        to _create_mock_client)."""
+        gen = self.get_mock_data_generator()
+        stream_records = {}
+        for stream_name in ALL_STREAMS:
+            stream_cls = STREAM_OBJECTS[stream_name]
+            records = gen.generate_records(stream_name, count=DEFAULT_RECORD_COUNT)
+            for i, rec in enumerate(records):
+                rec['id'] = i + 1
+            if 'updated_at' in stream_cls.replication_keys or (
+                hasattr(stream_cls, 'last_updated_at')
+            ):
+                for i, rec in enumerate(records):
+                    rec['updated_at'] = f'2024-06-{15 + i:02d}T10:00:00Z'
+            stream_records[stream_name] = records
+        return stream_records
+
     def _create_mock_client(self, stream_records=None):
         """Create a mock Client that returns generated data.
 
