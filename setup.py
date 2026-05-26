@@ -13,6 +13,7 @@ setup(
         "singer-python==6.8.0",
         "requests==2.33.0",
         "backoff==2.2.1",
+        "python-dateutil==2.9.0",
     ],
     extras_require={
         'dev': [
