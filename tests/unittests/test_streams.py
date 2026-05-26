@@ -320,9 +320,9 @@ class TestUpdatedAtSortByIdReplicationStream(unittest.TestCase):
         self.state = {"bookmarks": {}}
 
     def test_replication_keys(self):
-        """Test Campaigns overrides replication_keys to empty (bookmark is wall-clock time)."""
+        """Test Campaigns uses id as replication key for paging."""
         stream = Campaigns(self.client, self.config, self.state)
-        self.assertEqual(stream.replication_keys, [])
+        self.assertEqual(stream.replication_keys, ["id"])
 
     @patch("singer.write_state")
     @patch("singer.utils.now")

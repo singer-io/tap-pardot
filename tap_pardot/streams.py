@@ -525,11 +525,6 @@ class Campaigns(UpdatedAtSortByIdReplicationStream):
 
     is_dynamic = False
 
-    # Override: the real bookmark is 'last_updated' (wall-clock time set in
-    # post_sync), not a record field. Declaring replication_keys=[] makes the
-    # SCHEMA message honest — there's no record-level bookmark property.
-    replication_keys = []
-
 
 STREAM_OBJECTS = {
     cls.stream_name: cls
