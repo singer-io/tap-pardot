@@ -10,6 +10,7 @@ class PardotBookmarkTest(BookmarkTest, PardotBaseTest):
     initial_bookmarks = {
         "bookmarks": {
             "lists": {"updated_at": "2020-01-01T00:00:00Z"},
+            "prospects": {"updated_at": "2020-01-01T00:00:00Z"},
         }
     }
 
@@ -18,15 +19,24 @@ class PardotBookmarkTest(BookmarkTest, PardotBaseTest):
         return "tap_tester_pardot_bookmark_test"
 
     def streams_to_test(self):
-        # Only test 'lists' for bookmark behavior:
-        # - campaigns uses complex multi-phase bookmark (id during sync, last_updated after)
-        # - users has compound replication keys ["id", "updated_at"]
-        # - Other streams excluded due to no data in demo account
-        return {"lists"}
+        # Test streams with:
+        # - single replication key (required by BookmarkTest base class)
+        # - real data available in demo account
+        # Excluded:
+        # - campaigns: replication_keys=[] (wall-clock bookmark, not a record field)
+        # - users/opportunities/visits: compound replication keys ["id", "updated_at"]
+        # - list_memberships: compound replication keys ["id", "updated_at", "list_id"]
+        # - email_clicks/visitor_activities/visitors/prospect_accounts: no data
+        return {"lists", "prospects"}
 
     def calculate_new_bookmarks(self):
-        """Bookmarks that will narrow sync 2 to fewer records."""
+        """Bookmarks that will narrow sync 2 to fewer records.
+
+        These values are chosen to be between the earliest and latest record
+        timestamps so that the second sync returns a strict subset.
+        """
         new_bookmarks = {
             "lists": {"updated_at": "2026-01-01 00:00:00"},
+            "prospects": {"updated_at": "2026-05-06 23:00:00"},
         }
         return new_bookmarks

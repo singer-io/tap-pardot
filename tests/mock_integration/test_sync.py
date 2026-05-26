@@ -1,8 +1,8 @@
-"""Mock integration tests for sync pipeline of excluded streams.
+"""Mock integration tests for sync pipeline of all streams.
 
-Tests that the full discover -> sync pipeline works correctly for streams
-that are excluded from real integration tests due to demo account data
-limitations.
+Tests that the full discover -> sync pipeline works correctly for all streams,
+including those excluded from real integration tests due to demo account data
+limitations and those with available real data.
 """
 import unittest
 
@@ -11,9 +11,63 @@ from tap_pardot.streams import STREAM_OBJECTS
 from .base import (
     ALL_STREAMS,
     EXCLUDED_STREAMS,
+    NON_CHILD_STREAMS,
+    STREAMS_WITH_DATA,
     PardotMockBaseTest,
     DEFAULT_RECORD_COUNT,
 )
+
+
+class TestSyncStreamsWithData(PardotMockBaseTest, unittest.TestCase):
+    """Verify streams that have real data available sync correctly."""
+
+    def setUp(self):
+        self.client = self._create_mock_client()
+        self.catalog = self.run_discover(self.client)
+
+    def _sync_stream(self, stream_name):
+        catalog = self.select_streams(self.catalog, {stream_name})
+        return self.run_sync(self.client, catalog)
+
+    def test_campaigns_sync(self):
+        """campaigns (UpdatedAtSortByIdReplicationStream) syncs records."""
+        messages = self._sync_stream('campaigns')
+        records = self.get_records_from_messages(messages, 'campaigns')
+        self.assertEqual(len(records), DEFAULT_RECORD_COUNT)
+        schemas = self.get_schema_messages(messages, 'campaigns')
+        self.assertEqual(len(schemas), 1)
+
+    def test_lists_sync(self):
+        """lists (UpdatedAtReplicationStream) syncs records."""
+        messages = self._sync_stream('lists')
+        records = self.get_records_from_messages(messages, 'lists')
+        self.assertEqual(len(records), DEFAULT_RECORD_COUNT)
+        schemas = self.get_schema_messages(messages, 'lists')
+        self.assertEqual(len(schemas), 1)
+
+    def test_prospects_sync(self):
+        """prospects (UpdatedAtReplicationStream) syncs records."""
+        messages = self._sync_stream('prospects')
+        records = self.get_records_from_messages(messages, 'prospects')
+        self.assertEqual(len(records), DEFAULT_RECORD_COUNT)
+        schemas = self.get_schema_messages(messages, 'prospects')
+        self.assertEqual(len(schemas), 1)
+
+    def test_users_sync(self):
+        """users (NoUpdatedAtSortingStream) syncs records."""
+        messages = self._sync_stream('users')
+        records = self.get_records_from_messages(messages, 'users')
+        self.assertEqual(len(records), DEFAULT_RECORD_COUNT)
+        schemas = self.get_schema_messages(messages, 'users')
+        self.assertEqual(len(schemas), 1)
+
+    def test_list_memberships_sync(self):
+        """list_memberships (ChildStream) syncs records."""
+        messages = self._sync_stream('list_memberships')
+        records = self.get_records_from_messages(messages, 'list_memberships')
+        self.assertGreater(len(records), 0)
+        schemas = self.get_schema_messages(messages, 'list_memberships')
+        self.assertEqual(len(schemas), 1)
 
 
 class TestSyncExcludedStreams(PardotMockBaseTest, unittest.TestCase):
@@ -138,12 +192,11 @@ class TestSyncOutputSchemaConformance(PardotMockBaseTest, unittest.TestCase):
                               f"key property '{key_prop}'")
 
     def test_records_have_replication_keys(self):
-        """Every RECORD message contains replication_keys."""
+        """Every RECORD message contains replication_keys (when they are record fields)."""
         client = self._create_mock_client()
         catalog = self.run_discover(client)
-        # Only test non-child streams for replication key presence
-        non_child = EXCLUDED_STREAMS - {'visits', 'list_memberships'}
-        catalog = self.select_streams(catalog, non_child)
+        # Test all non-child streams
+        catalog = self.select_streams(catalog, NON_CHILD_STREAMS)
         messages = self.run_sync(client, catalog)
 
         for msg in messages:

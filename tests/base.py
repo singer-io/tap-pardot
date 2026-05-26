@@ -31,7 +31,7 @@ class PardotBaseTest(BaseCase):
             "campaigns": {
                 cls.PRIMARY_KEYS: {"id"},
                 cls.REPLICATION_METHOD: cls.INCREMENTAL,
-                cls.REPLICATION_KEYS: {"id"},
+                cls.REPLICATION_KEYS: set(),
                 cls.OBEYS_START_DATE: True,
             },
             "email_clicks": {

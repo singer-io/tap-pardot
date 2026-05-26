@@ -63,15 +63,15 @@ class TestStreamBase(unittest.TestCase):
         self.state = {"bookmarks": {}}
 
     def test_get_default_start(self):
-        """Test get_default_start returns config start_date."""
+        """Test get_default_start returns config start_date normalized to Pardot format."""
         stream = Prospects(self.client, self.config, self.state)
-        self.assertEqual(stream.get_default_start(), "2020-01-01T00:00:00Z")
+        self.assertEqual(stream.get_default_start(), "2020-01-01 00:00:00")
 
     @patch("singer.write_state")
     def test_get_bookmark_no_state(self, mock_write_state):
         """Test get_bookmark returns default start when no bookmark exists."""
         stream = Prospects(self.client, self.config, self.state)
-        self.assertEqual(stream.get_bookmark(), "2020-01-01T00:00:00Z")
+        self.assertEqual(stream.get_bookmark(), "2020-01-01 00:00:00")
 
     @patch("singer.write_state")
     def test_get_bookmark_with_state(self, mock_write_state):
@@ -183,7 +183,7 @@ class TestIdReplicationStream(unittest.TestCase):
         stream = EmailClicks(self.client, self.config, self.state)
         params = stream.get_params()
 
-        self.assertEqual(params["created_after"], "2020-01-01T00:00:00Z")
+        self.assertEqual(params["created_after"], "2020-01-01 00:00:00")
         self.assertEqual(params["id_greater_than"], 0)
         self.assertEqual(params["sort_by"], "id")
         self.assertEqual(params["sort_order"], "ascending")
@@ -216,7 +216,7 @@ class TestUpdatedAtReplicationStream(unittest.TestCase):
         stream = Prospects(self.client, self.config, self.state)
         params = stream.get_params()
 
-        self.assertEqual(params["updated_after"], "2020-01-01T00:00:00Z")
+        self.assertEqual(params["updated_after"], "2020-01-01 00:00:00")
         self.assertEqual(params["sort_by"], "updated_at")
         self.assertEqual(params["sort_order"], "ascending")
 
@@ -269,7 +269,7 @@ class TestNoUpdatedAtSortingStream(unittest.TestCase):
         stream = Opportunities(self.client, self.config, self.state)
         params = stream.get_params()
 
-        self.assertEqual(params["created_after"], "2020-01-01T00:00:00Z")
+        self.assertEqual(params["created_after"], "2020-01-01 00:00:00")
         self.assertEqual(params["id_greater_than"], 0)
         self.assertEqual(params["sort_by"], "id")
         self.assertEqual(params["sort_order"], "ascending")
@@ -320,9 +320,9 @@ class TestUpdatedAtSortByIdReplicationStream(unittest.TestCase):
         self.state = {"bookmarks": {}}
 
     def test_replication_keys(self):
-        """Test uses id as replication key."""
+        """Test Campaigns overrides replication_keys to empty (bookmark is wall-clock time)."""
         stream = Campaigns(self.client, self.config, self.state)
-        self.assertEqual(stream.replication_keys, ["id"])
+        self.assertEqual(stream.replication_keys, [])
 
     @patch("singer.write_state")
     @patch("singer.utils.now")
@@ -558,10 +558,10 @@ class TestComplexBookmarkStream(unittest.TestCase):
 
     @patch("singer.write_state")
     def test_get_default_start_updated_at(self, mock_write_state):
-        """Test get_default_start returns config start_date for updated_at."""
+        """Test get_default_start returns config start_date normalized to Pardot format."""
         stream = Opportunities(self.client, self.config, self.state)
         self.assertEqual(
-            stream.get_default_start("updated_at"), "2020-01-01T00:00:00Z"
+            stream.get_default_start("updated_at"), "2020-01-01 00:00:00"
         )
 
     @patch("singer.write_state")

@@ -39,8 +39,20 @@ EXCLUDED_STREAMS = {
     'visits',
 }
 
+# Streams that have real data available and can be fully tested
+STREAMS_WITH_DATA = {
+    'campaigns',
+    'lists',
+    'list_memberships',
+    'prospects',
+    'users',
+}
+
 # All streams
 ALL_STREAMS = set(STREAM_OBJECTS.keys())
+
+# All non-child streams (can be synced independently)
+NON_CHILD_STREAMS = ALL_STREAMS - CHILD_STREAMS
 
 
 class PardotMockBaseTest:
