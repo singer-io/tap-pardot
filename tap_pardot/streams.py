@@ -158,6 +158,18 @@ class UpdatedAtReplicationStream(Stream):
             "sort_order": "ascending",
         }
 
+    def sync_page(self):
+        bookmark = self.get_bookmark()
+        for rec in self.get_records():
+            current_bookmark_value = rec[self.replication_keys[0]]
+            # Client-side filter: skip records at or below the bookmark in case
+            # the API returns stale records despite the updated_after parameter.
+            if bookmark and current_bookmark_value <= bookmark:
+                continue
+            self.check_order(current_bookmark_value)
+            self.update_bookmark(current_bookmark_value)
+            yield rec
+
 
 class ComplexBookmarkStream(Stream):
     """Streams that need to keep track of more than 1 bookmark."""
