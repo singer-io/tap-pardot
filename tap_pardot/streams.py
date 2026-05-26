@@ -159,7 +159,7 @@ class UpdatedAtReplicationStream(Stream):
         }
 
     def sync_page(self):
-        bookmark = self.get_bookmark()
+        bookmark = _normalize_datetime(self.get_bookmark())
         for rec in self.get_records():
             current_bookmark_value = rec[self.replication_keys[0]]
             # Client-side filter: skip records at or below the bookmark in case
