@@ -60,16 +60,24 @@ def discover(client):
     for stream_name, schema in raw_schemas.items():
         # create and add catalog entry
         stream = STREAM_OBJECTS[stream_name]
+        mdata = metadata.get_standard_metadata(
+            schema=schema,
+            key_properties=stream.key_properties,
+            valid_replication_keys=stream.replication_keys,
+            replication_method=stream.replication_method,
+        )
+        # Mark replication keys as automatic inclusion
+        mdata_map = metadata.to_map(mdata)
+        for rep_key in (stream.replication_keys or []):
+            if ('properties', rep_key) in mdata_map:
+                mdata_map[('properties', rep_key)]['inclusion'] = 'automatic'
+        mdata = metadata.to_list(mdata_map)
+
         catalog_entry = {
             "stream": stream_name,
             "tap_stream_id": stream_name,
             "schema": schema,
-            "metadata": metadata.get_standard_metadata(
-                schema=schema,
-                key_properties=stream.key_properties,
-                valid_replication_keys=stream.replication_keys,
-                replication_method=stream.replication_method,
-            ),
+            "metadata": mdata,
             "key_properties": stream.key_properties,
         }
         streams.append(catalog_entry)

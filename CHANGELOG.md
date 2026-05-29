@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.0
+  * Upgrade Python from 3.9 to 3.12 [#56](https://github.com/singer-io/tap-pardot/pull/56)
+  * Add unit and integration tests
+
 ## 1.4.9
   * Update Visitors stream to pull all visitors, not just "identified" visitors [53](https://github.com/singer-io/tap-pardot/pull/53)
   * Pass comma separated visitor_ids to fetch visits.
