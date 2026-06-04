@@ -79,9 +79,17 @@ class Stream:
         if self.is_child_stream():
             return True
 
+        # Use the stream's normal query params to avoid passing unsupported filters,
+        # but force the time filter into the future so we don't fetch real data.
+        params = dict(self.get_params() or {})
+        future_dt = "2100-01-01 00:00:00"
+        if "created_after" in params:
+            params["created_after"] = future_dt
+        if "updated_after" in params:
+            params["updated_after"] = future_dt
+
         try:
-            self.client.get(self.endpoint, created_after="2100-01-01 00:00:00",
-                           sort_by="id", sort_order="ascending")
+            self.client.get(self.endpoint, **params)
             return True
         except PardotForbiddenError:
             LOGGER.warning(
