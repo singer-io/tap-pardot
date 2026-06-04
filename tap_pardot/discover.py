@@ -40,26 +40,31 @@ def _load_schemas(client):
     for stream in schemas.keys():
         stream_object = STREAM_OBJECTS[stream]
         if stream_object.is_dynamic:
-            # Client describe
-            schema_response = client.describe(stream_object.endpoint)
-            # Parse Result into JSON Schema
-            dynamic_schema_parts = _parse_schema_description(schema_response)
-            # Add to schemas
-            schemas[stream] = {
-                "type": "object",
-                "properties": {**schemas[stream]["properties"], **dynamic_schema_parts},
-            }
+            try:
+                # Client describe
+                schema_response = client.describe(stream_object.endpoint)
+                # Parse Result into JSON Schema
+                dynamic_schema_parts = _parse_schema_description(schema_response)
+                # Add to schemas
+                schemas[stream] = {
+                    "type": "object",
+                    "properties": {**schemas[stream]["properties"], **dynamic_schema_parts},
+                }
+            except PardotForbiddenError:
+                LOGGER.warning(
+                    "Stream '%s' describe endpoint returned 403, skipping dynamic schema merge.",
+                    stream,
+                )
 
     return schemas
 
 
 def _apply_access_checks(client, schemas):
     """
-    Probe each stream for read access and remove inaccessible streams from schemas in place.
-    Logic:
-      1. Check all parent streams first; remove inaccessible ones.
-      2. Prune children whose parent was removed (no need to check them individually).
-      3. Check remaining child streams individually; remove inaccessible ones.
+    Probe each parent stream for read access and remove inaccessible streams
+    (and their children) from schemas in place.
+    Child streams are not checked individually — their access is governed by
+    the parent stream check.
     Raises PardotForbiddenError if no parent streams are accessible.
     """
     dummy_config = {"start_date": "2100-01-01T00:00:00Z"}
@@ -67,12 +72,12 @@ def _apply_access_checks(client, schemas):
 
     inaccessible_streams = []
 
-    # Step 1: Check parent streams
+    # Check only parent streams for access
     for stream_name in list(schemas.keys()):
         stream_cls = STREAM_OBJECTS.get(stream_name)
         if stream_cls is None:
             continue
-        # Only check parent streams in this pass
+        # Skip child streams — access governed by parent
         if hasattr(stream_cls, 'parent_class') and stream_cls.parent_class is not None:
             continue
         stream_obj = stream_cls(client=client, config=dummy_config, state=dummy_state, emit=False)
@@ -82,21 +87,8 @@ def _apply_access_checks(client, schemas):
     for stream_name in inaccessible_streams:
         schemas.pop(stream_name, None)
 
-    # Step 2: Prune children of inaccessible parents
+    # Prune children of inaccessible parents
     _prune_inaccessible_children(schemas)
-
-    # Step 3: Check remaining child streams individually
-    for stream_name in list(schemas.keys()):
-        stream_cls = STREAM_OBJECTS.get(stream_name)
-        if stream_cls is None:
-            continue
-        # Only check child streams in this pass
-        if not (hasattr(stream_cls, 'parent_class') and stream_cls.parent_class is not None):
-            continue
-        stream_obj = stream_cls(client=client, config=dummy_config, state=dummy_state, emit=False)
-        if not stream_obj.check_access():
-            inaccessible_streams.append(stream_name)
-            schemas.pop(stream_name, None)
 
     if inaccessible_streams:
         # Check if ALL parent streams are inaccessible

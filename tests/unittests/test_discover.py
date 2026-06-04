@@ -207,6 +207,7 @@ class TestApplyAccessChecks(unittest.TestCase):
 
         mock_stream_objects.get.side_effect = lambda k: {"prospects": mock_prospects_cls, "campaigns": mock_campaigns_cls}.get(k)
         mock_stream_objects.items.return_value = [("prospects", mock_prospects_cls), ("campaigns", mock_campaigns_cls)]
+        mock_stream_objects.__getitem__ = lambda self, key: {"prospects": mock_prospects_cls, "campaigns": mock_campaigns_cls}[key]
 
         schemas = {
             "prospects": {"type": "object", "properties": {}},
@@ -231,7 +232,7 @@ class TestApplyAccessChecks(unittest.TestCase):
 
         mock_stream_objects.get.return_value = mock_prospects_cls
         mock_stream_objects.items.return_value = [("prospects", mock_prospects_cls)]
-        mock_stream_objects.__getitem__ = lambda self, key: mock_prospects_cls
+        mock_stream_objects.__getitem__ = lambda self, key: {"prospects": mock_prospects_cls}[key]
 
         schemas = {"prospects": {"type": "object", "properties": {}}}
 
@@ -301,23 +302,25 @@ class TestStreamCheckAccess(unittest.TestCase):
         stream = Prospects(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
         self.assertFalse(stream.check_access())
 
-    def test_check_access_child_stream_also_checked(self):
-        """Test check_access checks child streams independently when called."""
+    def test_check_access_child_stream_always_true(self):
+        """Test check_access always returns True for child streams without making API calls."""
         from tap_pardot.streams import Visits
 
         client = MagicMock()
         client.get.side_effect = PardotForbiddenError("403 Forbidden")
         stream = Visits(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
-        self.assertFalse(stream.check_access())
+        # Child streams always return True — access governed by parent
+        self.assertTrue(stream.check_access())
+        client.get.assert_not_called()
 
-    def test_check_access_child_stream_accessible(self):
-        """Test check_access returns True for accessible child streams."""
-        from tap_pardot.streams import Visits
+    def test_check_access_child_stream_does_not_call_api(self):
+        """Test check_access for child streams skips API call entirely."""
+        from tap_pardot.streams import ListMemberships
 
         client = MagicMock()
-        client.get.return_value = {"result": None}
-        stream = Visits(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
+        stream = ListMemberships(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
         self.assertTrue(stream.check_access())
+        client.get.assert_not_called()
 
 
 if __name__ == "__main__":

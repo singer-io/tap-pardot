@@ -99,7 +99,7 @@ class PardotBaseTest(BaseCase):
 
     @classmethod
     def expected_stream_names(cls):
-        """The expected stream names and exclude forbidden streams."""
+        """Return expected stream names excluding forbidden streams."""
         return {
             stream_name
             for stream_name, metadata in cls.expected_metadata().items()

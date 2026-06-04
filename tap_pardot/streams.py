@@ -74,7 +74,11 @@ class Stream:
         """
         Verify that the API credentials have read access to this stream.
         Returns True if accessible, False if a 403 Forbidden error is raised.
+        Child streams always return True (access is governed by the parent check).
         """
+        if self.is_child_stream():
+            return True
+
         try:
             self.client.get(self.endpoint, created_after="2100-01-01 00:00:00",
                            sort_by="id", sort_order="ascending")
