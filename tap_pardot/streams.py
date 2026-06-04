@@ -30,6 +30,7 @@ class Stream:
     replication_keys = []
     replication_method = None
     is_dynamic = False
+    parent_class = None
 
     client = None
     config = None
@@ -100,7 +101,7 @@ class Stream:
 
     def is_child_stream(self):
         """Return True if this stream is a child stream."""
-        return hasattr(self, 'parent_class') and self.parent_class is not None
+        return self.parent_class is not None
 
     def get_records(self):
         data = self.client.get(self.endpoint, **self.get_params())
