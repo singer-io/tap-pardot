@@ -3,6 +3,10 @@ import inspect
 import singer
 from dateutil.parser import parse as parse_datetime
 
+from .client import PardotForbiddenError
+
+LOGGER = singer.get_logger()
+
 PARDOT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
@@ -65,6 +69,26 @@ class Stream:
 
     def post_sync(self):
         """Function to run arbitrary code after a full sync completes."""
+
+    def check_access(self):
+        """
+        Verify that the API credentials have read access to this stream.
+        Returns True if accessible, False if a 403 Forbidden error is raised.
+        """
+        try:
+            self.client.get(self.endpoint, created_after="2100-01-01 00:00:00",
+                           sort_by="id", sort_order="ascending")
+            return True
+        except PardotForbiddenError:
+            LOGGER.warning(
+                "Stream '%s' does not have read permission, excluding from catalog.",
+                self.stream_name,
+            )
+            return False
+
+    def is_child_stream(self):
+        """Return True if this stream is a child stream."""
+        return hasattr(self, 'parent_class') and self.parent_class is not None
 
     def get_records(self):
         data = self.client.get(self.endpoint, **self.get_params())

@@ -13,6 +13,7 @@ class PardotBaseTest(BaseCase):
     """
 
     start_date = "2020-01-01T00:00:00Z"
+    IS_FORBIDDEN_STREAM = "is-forbidden-stream"
 
     @staticmethod
     def tap_name():
@@ -98,8 +99,12 @@ class PardotBaseTest(BaseCase):
 
     @classmethod
     def expected_stream_names(cls):
-        """Return all expected stream names."""
-        return set(cls.expected_metadata().keys())
+        """The expected stream names and exclude forbidden streams."""
+        return {
+            stream_name
+            for stream_name, metadata in cls.expected_metadata().items()
+            if not metadata.get(cls.IS_FORBIDDEN_STREAM, False)
+        }
 
     @staticmethod
     def get_credentials():

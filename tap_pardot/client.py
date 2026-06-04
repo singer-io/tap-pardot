@@ -20,6 +20,9 @@ class Pardot401Error(Exception):
 class Pardot89Error(Exception):
     pass
 
+class PardotForbiddenError(Exception):
+    pass
+
 class AuthCredsMissingError(Exception):
     def __init__(self, message):
         super().__init__(message)
@@ -183,6 +186,12 @@ class Client:
                 LOGGER.warning("Received a 401 unauthenticated error from Pardot. Reauthing and retrying the request.")
                 self.refresh_credentials()
                 raise Pardot401Error
+
+        # 403 errors indicate the credentials lack access
+        if response.status_code == 403:
+            raise PardotForbiddenError(
+                "HTTP-error-code: 403, Error: Insufficient permissions to access this resource."
+            )
 
         # 5xx errors should be retried
         if response.status_code >= 500:

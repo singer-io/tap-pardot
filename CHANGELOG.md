@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.0
+  * Streams the credentials cannot access (403) are now excluded from the catalog during discovery instead of raising an error.
+  * Child streams are automatically excluded when their parent stream is inaccessible.
+  * Added unit tests for discovery access checks.
+
 ## 2.0.0
   * Upgrade Python from 3.9 to 3.12 [#56](https://github.com/singer-io/tap-pardot/pull/56)
   * Add unit and integration tests

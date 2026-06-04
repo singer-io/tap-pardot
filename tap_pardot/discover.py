@@ -4,6 +4,7 @@ import os
 import singer
 from singer import Catalog, metadata
 
+from .client import PardotForbiddenError
 from .streams import STREAM_OBJECTS
 
 LOGGER = singer.get_logger()
@@ -52,9 +53,95 @@ def _load_schemas(client):
     return schemas
 
 
+def _apply_access_checks(client, schemas):
+    """
+    Probe each stream for read access and remove inaccessible streams from schemas in place.
+    Logic:
+      1. Check all parent streams first; remove inaccessible ones.
+      2. Prune children whose parent was removed (no need to check them individually).
+      3. Check remaining child streams individually; remove inaccessible ones.
+    Raises PardotForbiddenError if no parent streams are accessible.
+    """
+    dummy_config = {"start_date": "2100-01-01T00:00:00Z"}
+    dummy_state = {}
+
+    inaccessible_streams = []
+
+    # Step 1: Check parent streams
+    for stream_name in list(schemas.keys()):
+        stream_cls = STREAM_OBJECTS.get(stream_name)
+        if stream_cls is None:
+            continue
+        # Only check parent streams in this pass
+        if hasattr(stream_cls, 'parent_class') and stream_cls.parent_class is not None:
+            continue
+        stream_obj = stream_cls(client=client, config=dummy_config, state=dummy_state, emit=False)
+        if not stream_obj.check_access():
+            inaccessible_streams.append(stream_name)
+
+    for stream_name in inaccessible_streams:
+        schemas.pop(stream_name, None)
+
+    # Step 2: Prune children of inaccessible parents
+    _prune_inaccessible_children(schemas)
+
+    # Step 3: Check remaining child streams individually
+    for stream_name in list(schemas.keys()):
+        stream_cls = STREAM_OBJECTS.get(stream_name)
+        if stream_cls is None:
+            continue
+        # Only check child streams in this pass
+        if not (hasattr(stream_cls, 'parent_class') and stream_cls.parent_class is not None):
+            continue
+        stream_obj = stream_cls(client=client, config=dummy_config, state=dummy_state, emit=False)
+        if not stream_obj.check_access():
+            inaccessible_streams.append(stream_name)
+            schemas.pop(stream_name, None)
+
+    if inaccessible_streams:
+        # Check if ALL parent streams are inaccessible
+        total_parent_streams = len([
+            name for name, cls in STREAM_OBJECTS.items()
+            if not (hasattr(cls, 'parent_class') and cls.parent_class is not None)
+        ])
+        inaccessible_parent_count = len([
+            name for name in inaccessible_streams
+            if not (hasattr(STREAM_OBJECTS[name], 'parent_class') and STREAM_OBJECTS[name].parent_class is not None)
+        ])
+        if inaccessible_parent_count == total_parent_streams:
+            raise PardotForbiddenError(
+                "HTTP-error-code: 403, Error: The account credentials supplied do not have 'read' access to any "
+                "of the streams supported by the tap. Data collection cannot be initiated due to lack of permissions."
+            )
+        LOGGER.warning(
+            "The account credentials supplied do not have 'read' access to the following stream(s): %s. "
+            "These streams have been excluded from the catalog.",
+            ", ".join(inaccessible_streams),
+        )
+
+
+def _prune_inaccessible_children(schemas):
+    """
+    Remove child streams from the catalog whose parent stream was excluded.
+    Mutates schemas in place.
+    """
+    for name, stream_cls in list(STREAM_OBJECTS.items()):
+        if name in schemas and hasattr(stream_cls, 'parent_class') and stream_cls.parent_class:
+            parent_stream_name = stream_cls.parent_class.stream_name
+            if parent_stream_name not in schemas:
+                LOGGER.warning(
+                    "Stream '%s' excluded from catalog because its parent stream '%s' is not accessible.",
+                    name, parent_stream_name,
+                )
+                schemas.pop(name)
+
+
 def discover(client):
     LOGGER.info("Starting discovery mode")
     raw_schemas = _load_schemas(client)
+
+    _apply_access_checks(client, raw_schemas)
+
     streams = []
 
     for stream_name, schema in raw_schemas.items():
