@@ -194,7 +194,7 @@ class TestClientLogin(unittest.TestCase):
 class TestClientRefreshCredentials(unittest.TestCase):
     """Test Client refresh_credentials method."""
 
-    @patch("tap_pardot.client.requests.request")
+    @patch("tap_pardot.client.requests.post")
     def test_refresh_credentials_success(self, mock_request):
         """Test successful credential refresh stores access_token."""
         mock_request.return_value = MockResponse(
@@ -216,7 +216,7 @@ class TestClientRefreshCredentials(unittest.TestCase):
 
         self.assertEqual(client.creds["access_token"], "new_access_token")
 
-    @patch("tap_pardot.client.requests.request")
+    @patch("tap_pardot.client.requests.post")
     def test_refresh_credentials_http_error(self, mock_request):
         """Test refresh_credentials raises on HTTP error."""
         mock_request.return_value = MockResponse(
@@ -235,8 +235,9 @@ class TestClientRefreshCredentials(unittest.TestCase):
             client.creds = creds
             client.api_version = "4"
 
-            with self.assertRaises(requests.HTTPError):
+            with self.assertRaises(Exception) as ctx:
                 client.refresh_credentials()
+            self.assertIn("OAuth token refresh failed with status 401", str(ctx.exception))
 
 
 class TestClientMakeRequest(unittest.TestCase):

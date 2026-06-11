@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2.1.0
-  * Exclude Streams that the credentials cannot access (403) from the catalog during discovery; discovery fails only if the credentials cannot read any supported parent stream. [#57](https://github.com/singer-io/tap-pardot/pull/57)
+  * Exclude unauthorized (403) streams from the discovery catalog [#57](https://github.com/singer-io/tap-pardot/pull/57)
 
 ## 2.0.0
   * Upgrade Python from 3.9 to 3.12 [#56](https://github.com/singer-io/tap-pardot/pull/56)

@@ -321,7 +321,3 @@ class TestStreamCheckAccess(unittest.TestCase):
         stream = ListMemberships(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
         self.assertTrue(stream.check_access())
         client.get.assert_not_called()
-
-
-if __name__ == "__main__":
-    unittest.main()

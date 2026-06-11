@@ -142,20 +142,23 @@ class Client:
             "Content-Type": "application/x-www-form-urlencoded"
         }
 
-        params = {
+        data = {
             "grant_type": "refresh_token",
             "refresh_token": self.creds["refresh_token"],
         }
-        method = "POST"
 
-        response = requests.request(
-            method,
+        response = requests.post(
             REFRESH_URL,
             headers=headers,
-            params=params
+            data=data,
+            timeout=30,
         )
 
-        response.raise_for_status()
+        if response.status_code != 200:
+            raise Exception(
+                f"OAuth token refresh failed with status {response.status_code}. "
+                "Verify that refresh_token, client_id, and client_secret are valid."
+            )
         response = response.json()
 
         self.creds['access_token'] = response["access_token"]
