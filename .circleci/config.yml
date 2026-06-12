@@ -8,9 +8,9 @@ jobs:
       - run:
           name: 'Setup virtual env'
           command: |
-            uv venv --python 3.9 /usr/local/share/virtualenvs/tap-pardot
+            uv venv --python 3.12 /usr/local/share/virtualenvs/tap-pardot
             source /usr/local/share/virtualenvs/tap-pardot/bin/activate
-            uv pip install -U 'pip==22.2.2' 'setuptools==65.3.0'
+            uv pip install -U setuptools
             uv pip install .[dev]
       - run:
           name: 'JSON Validator'
@@ -21,8 +21,22 @@ jobs:
           name: 'pylint'
           command: |
             source /usr/local/share/virtualenvs/tap-pardot/bin/activate
-            uv pip install -U pylint
             pylint tap_pardot -d C,R,W
+      - add_ssh_keys
+      - run:
+          name: "Unit Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-pardot/bin/activate
+            mkdir -p test_output
+            coverage run -m pytest --junitxml=test_output/report.xml tests/unittests
+            coverage html
+      - run:
+          name: "Mock Integration Tests"
+          command: |
+            source /usr/local/share/virtualenvs/tap-pardot/bin/activate
+            uv pip install pytest
+            coverage run --append -m pytest tests/mock_integration/ -v
+            coverage report
       - run:
           name: 'Integration Tests'
           command: |
@@ -30,7 +44,15 @@ jobs:
             uv pip install --upgrade awscli
             aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
             source dev_env.sh
+            unset USE_STITCH_BACKEND
+            # Temporarily move mock_integration out of the tests/ tree so that
+            # run-test does not discover it
+            mv tests/mock_integration /tmp/mock_integration_backup
             run-test --tap=tap-pardot tests
+      - run:
+          name: 'Restore mock_integration'
+          when: always
+          command: mv /tmp/mock_integration_backup tests/mock_integration || true
 
 
 workflows:

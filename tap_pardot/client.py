@@ -20,6 +20,9 @@ class Pardot401Error(Exception):
 class Pardot89Error(Exception):
     pass
 
+class PardotForbiddenError(Exception):
+    pass
+
 class AuthCredsMissingError(Exception):
     def __init__(self, message):
         super().__init__(message)
@@ -51,13 +54,22 @@ class Client:
     api_version = None
     api_key = None
     creds = None
+    endpoint_base = ENDPOINT_BASE
 
     get_url = "{}/version/{}/do/query"
     describe_url = "{}/version/{}/do/describe"
 
+    @staticmethod
+    def _normalize_endpoint_base(endpoint_base):
+        endpoint_base = (endpoint_base or ENDPOINT_BASE).strip()
+        return endpoint_base.rstrip('/') + '/'
+
     def __init__(self, creds):
         self.creds = creds
         self.api_version = "4"
+        self.endpoint_base = self._normalize_endpoint_base(
+            creds.get('pardot_api_url', ENDPOINT_BASE)
+        )
         if self.has_oauth_values():
             self.refresh_credentials()
         elif self.has_api_key_auth_values():
@@ -130,20 +142,23 @@ class Client:
             "Content-Type": "application/x-www-form-urlencoded"
         }
 
-        params = {
+        data = {
             "grant_type": "refresh_token",
             "refresh_token": self.creds["refresh_token"],
         }
-        method = "POST"
 
-        response = requests.request(
-            method,
+        response = requests.post(
             REFRESH_URL,
             headers=headers,
-            params=params
+            data=data,
+            timeout=30,
         )
 
-        response.raise_for_status()
+        if response.status_code != 200:
+            raise Exception(
+                f"OAuth token refresh failed with status {response.status_code}. "
+                "Verify that refresh_token, client_id, and client_secret are valid."
+            )
         response = response.json()
 
         self.creds['access_token'] = response["access_token"]
@@ -174,6 +189,12 @@ class Client:
                 LOGGER.warning("Received a 401 unauthenticated error from Pardot. Reauthing and retrying the request.")
                 self.refresh_credentials()
                 raise Pardot401Error
+
+        # 403 errors indicate the credentials lack access
+        if response.status_code == 403:
+            raise PardotForbiddenError(
+                "HTTP-error-code: 403, Error: Insufficient permissions to access this resource."
+            )
 
         # 5xx errors should be retried
         if response.status_code >= 500:
@@ -214,7 +235,7 @@ class Client:
         giveup=is_not_retryable_pardot_exception,
     )
     def describe(self, endpoint, **kwargs):
-        url = (ENDPOINT_BASE + self.describe_url).format(endpoint, '{}')
+        url = (self.endpoint_base + self.describe_url).format(endpoint, '{}')
 
         params = {"format": "json", "output": "bulk", **kwargs}
 
@@ -234,7 +255,7 @@ class Client:
         base_formatting = [endpoint, '{}']
         if format_params:
             base_formatting.extend(format_params)
-        url = (ENDPOINT_BASE + self.get_url).format(*base_formatting)
+        url = (self.endpoint_base + self.get_url).format(*base_formatting)
 
         params = {"format": "json", "output": "bulk", **kwargs}
 

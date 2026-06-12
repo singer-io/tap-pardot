@@ -1,6 +1,25 @@
 import inspect
 
 import singer
+from dateutil.parser import parse as parse_datetime
+
+from .client import PardotForbiddenError
+
+LOGGER = singer.get_logger()
+
+PARDOT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
+def _normalize_datetime(dt_str):
+    """Normalize a datetime string to Pardot API format for consistent comparison.
+
+    The Pardot API returns dates in '%Y-%m-%d %H:%M:%S' format, but config
+    start_date may be in ISO 8601 format ('2020-01-01T00:00:00Z'). Mixing
+    formats causes incorrect string comparisons (space < 'T' in ASCII).
+    """
+    if dt_str and 'T' in str(dt_str):
+        return parse_datetime(dt_str).strftime(PARDOT_DATETIME_FORMAT)
+    return dt_str
 
 
 class Stream:
@@ -11,6 +30,7 @@ class Stream:
     replication_keys = []
     replication_method = None
     is_dynamic = False
+    parent_class = None
 
     client = None
     config = None
@@ -25,7 +45,7 @@ class Stream:
         self.emit = emit
 
     def get_default_start(self):
-        return self.config["start_date"]
+        return _normalize_datetime(self.config["start_date"])
 
     def get_params(self):
         return {}
@@ -50,6 +70,38 @@ class Stream:
 
     def post_sync(self):
         """Function to run arbitrary code after a full sync completes."""
+
+    def check_access(self):
+        """
+        Verify that the API credentials have read access to this stream.
+        Returns True if accessible, False if a 403 Forbidden error is raised.
+        Child streams always return True (access is governed by the parent check).
+        """
+        if self.is_child_stream():
+            return True
+
+        # Use the stream's normal query params to avoid passing unsupported filters,
+        # but force the time filter into the future so we don't fetch real data.
+        params = dict(self.get_params() or {})
+        future_dt = "2100-01-01 00:00:00"
+        if "created_after" in params:
+            params["created_after"] = future_dt
+        if "updated_after" in params:
+            params["updated_after"] = future_dt
+
+        try:
+            self.client.get(self.endpoint, **params)
+            return True
+        except PardotForbiddenError:
+            LOGGER.warning(
+                "Stream '%s' does not have read permission, excluding from catalog.",
+                self.stream_name,
+            )
+            return False
+
+    def is_child_stream(self):
+        """Return True if this stream is a child stream."""
+        return self.parent_class is not None
 
     def get_records(self):
         data = self.client.get(self.endpoint, **self.get_params())
@@ -115,7 +167,7 @@ class IdReplicationStream(Stream):
 
     def get_params(self):
         return {
-            "created_after": self.config["start_date"],
+            "created_after": _normalize_datetime(self.config["start_date"]),
             "id_greater_than": self.get_bookmark(),
             "sort_by": "id",
             "sort_order": "ascending",
@@ -143,14 +195,27 @@ class UpdatedAtReplicationStream(Stream):
             "sort_order": "ascending",
         }
 
+    def sync_page(self):
+        bookmark = _normalize_datetime(self.get_bookmark())
+        for rec in self.get_records():
+            current_bookmark_value = rec[self.replication_keys[0]]
+            # Client-side filter: skip records at or below the bookmark in case
+            # the API returns stale records despite the updated_after parameter.
+            if bookmark and current_bookmark_value <= bookmark:
+                continue
+            self.check_order(current_bookmark_value)
+            self.update_bookmark(current_bookmark_value)
+            yield rec
+
 
 class ComplexBookmarkStream(Stream):
     """Streams that need to keep track of more than 1 bookmark."""
 
     def get_default_start(self, key):
+        start_date = _normalize_datetime(self.config["start_date"])
         defaults = {
-            "updated_at": self.config["start_date"],
-            "last_updated": self.config["start_date"],
+            "updated_at": start_date,
+            "last_updated": start_date,
             "id": 0,
             "offset": 0,
         }
@@ -208,7 +273,7 @@ class NoUpdatedAtSortingStream(ComplexBookmarkStream):
 
     def get_params(self):
         return {
-            "created_after": self.config["start_date"],
+            "created_after": _normalize_datetime(self.config["start_date"]),
             "id_greater_than": self.get_bookmark("id"),
             "sort_by": "id",
             "sort_order": "ascending",

@@ -1,7 +1,13 @@
 # Changelog
 
-## 1.5.0
+
+## 2.1.0
+  * Exclude unauthorized (403) streams from the discovery catalog [#57](https://github.com/singer-io/tap-pardot/pull/57)
   * Added `parent-tap-stream-id` metadata, Updated Integration Tests [#54](https://github.com/singer-io/tap-pardot/pull/54)
+
+## 2.0.0
+  * Upgrade Python from 3.9 to 3.12 [#56](https://github.com/singer-io/tap-pardot/pull/56)
+  * Add unit and integration tests
 
 ## 1.4.9
   * Update Visitors stream to pull all visitors, not just "identified" visitors [53](https://github.com/singer-io/tap-pardot/pull/53)
