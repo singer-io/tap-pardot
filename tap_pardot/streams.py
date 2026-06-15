@@ -86,8 +86,6 @@ class Stream:
 
         try:
             self.client.get(self.endpoint, **params)
-            if self.stream_name == "visitors":
-                raise PardotForbiddenError("Simulated 403 for visitors")  # For testing purposes
             return True
         except PardotForbiddenError as exc:
             LOGGER.warning(
