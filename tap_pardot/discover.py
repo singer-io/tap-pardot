@@ -139,12 +139,19 @@ def discover(client):
     for stream_name, schema in raw_schemas.items():
         # create and add catalog entry
         stream = STREAM_OBJECTS[stream_name]
+
         mdata = metadata.get_standard_metadata(
-            schema=schema,
-            key_properties=stream.key_properties,
-            valid_replication_keys=stream.replication_keys,
-            replication_method=stream.replication_method,
+                schema=schema,
+                key_properties=stream.key_properties,
+                valid_replication_keys=stream.replication_keys,
+                replication_method=stream.replication_method,
         )
+
+        if hasattr(stream, 'parent_class') and stream.parent_class is not None:
+            mdata = metadata.to_map(mdata)
+            mdata = metadata.write(mdata, (), "parent-tap-stream-id", stream.parent_class.stream_name)
+            mdata = metadata.to_list(mdata)
+
         # Mark replication keys as automatic inclusion
         mdata_map = metadata.to_map(mdata)
         for rep_key in (stream.replication_keys or []):
