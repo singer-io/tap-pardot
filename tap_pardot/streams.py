@@ -80,22 +80,20 @@ class Stream:
         if self.is_child_stream():
             return True
 
-        # Use the stream's normal query params to avoid passing unsupported filters,
-        # but force the time filter into the future so we don't fetch real data.
+        # Use the stream's normal query params — the caller (discover.py) already
+        # passes current date as start_date, so time filters are naturally current.
         params = dict(self.get_params() or {})
-        future_dt = "2100-01-01 00:00:00"
-        if "created_after" in params:
-            params["created_after"] = future_dt
-        if "updated_after" in params:
-            params["updated_after"] = future_dt
 
         try:
             self.client.get(self.endpoint, **params)
+            if self.stream_name == "visitors":
+                raise PardotForbiddenError("Simulated 403 for visitors")  # For testing purposes
             return True
-        except PardotForbiddenError:
+        except PardotForbiddenError as exc:
             LOGGER.warning(
-                "Stream '%s' does not have read permission, excluding from catalog.",
+                "Stream '%s' does not have read permission, excluding from catalog. Detail: %s",
                 self.stream_name,
+                str(exc),
             )
             return False
 

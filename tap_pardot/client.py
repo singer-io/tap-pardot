@@ -192,8 +192,9 @@ class Client:
 
         # 403 errors indicate the credentials lack access
         if response.status_code == 403:
+            error_detail = response.text[:200] if response.text else "No additional details"
             raise PardotForbiddenError(
-                "HTTP-error-code: 403, Error: Insufficient permissions to access this resource."
+                f"HTTP 403 Forbidden for endpoint {full_url}: {error_detail}"
             )
 
         # 5xx errors should be retried

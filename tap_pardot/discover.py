@@ -4,6 +4,8 @@ import os
 import singer
 from singer import Catalog, metadata
 
+from datetime import datetime, timezone
+
 from .client import PardotForbiddenError
 from .streams import STREAM_OBJECTS
 
@@ -67,10 +69,8 @@ def _apply_access_checks(client, schemas):
     the parent stream check.
     Raises PardotForbiddenError if no parent streams are accessible.
     """
-    dummy_config = {"start_date": "2100-01-01T00:00:00Z"}
-    dummy_state = {}
-
     inaccessible_streams = []
+    current_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Check only parent streams for access
     for stream_name in list(schemas.keys()):
@@ -80,7 +80,10 @@ def _apply_access_checks(client, schemas):
         # Skip child streams — access governed by parent
         if hasattr(stream_cls, 'parent_class') and stream_cls.parent_class is not None:
             continue
-        stream_obj = stream_cls(client=client, config=dummy_config, state=dummy_state, emit=False)
+        stream_obj = stream_cls(client=client,
+                                config={"start_date": current_date},
+                                state={},
+                                emit=False)
         if not stream_obj.check_access():
             inaccessible_streams.append(stream_name)
 
@@ -90,24 +93,13 @@ def _apply_access_checks(client, schemas):
     # Prune children of inaccessible parents
     _prune_inaccessible_children(schemas)
 
+    if not schemas:
+        raise PardotForbiddenError(
+            "All streams returned 403. Verify that the credentials have read access to at least one stream."
+        )
     if inaccessible_streams:
-        # Check if ALL parent streams are inaccessible
-        total_parent_streams = len([
-            name for name, cls in STREAM_OBJECTS.items()
-            if not (hasattr(cls, 'parent_class') and cls.parent_class is not None)
-        ])
-        inaccessible_parent_count = len([
-            name for name in inaccessible_streams
-            if not (hasattr(STREAM_OBJECTS[name], 'parent_class') and STREAM_OBJECTS[name].parent_class is not None)
-        ])
-        if inaccessible_parent_count == total_parent_streams:
-            raise PardotForbiddenError(
-                "HTTP-error-code: 403, Error: The account credentials supplied do not have 'read' access to any "
-                "of the streams supported by the tap. Data collection cannot be initiated due to lack of permissions."
-            )
         LOGGER.warning(
-            "The account credentials supplied do not have 'read' access to the following stream(s): %s. "
-            "These streams have been excluded from the catalog.",
+            "These streams have been excluded due to 403 Forbidden: %s",
             ", ".join(inaccessible_streams),
         )
 
