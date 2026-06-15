@@ -147,7 +147,7 @@ def discover(client):
                 replication_method=stream.replication_method,
         )
 
-        if hasattr(stream, 'parent_class'):
+        if hasattr(stream, 'parent_class') and stream.parent_class is not None:
             mdata = metadata.to_map(mdata)
             mdata = metadata.write(mdata, (), "parent-tap-stream-id", stream.parent_class.stream_name)
             mdata = metadata.to_list(mdata)
