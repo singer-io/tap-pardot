@@ -17,10 +17,11 @@ from tap_pardot.client import (
 class MockResponse:
     """Mock HTTP response for testing."""
 
-    def __init__(self, status_code, json_data=None, raise_for_status_error=False):
+    def __init__(self, status_code, json_data=None, raise_for_status_error=False, text=""):
         self.status_code = status_code
         self.json_data = json_data or {}
         self.raise_for_status_error = raise_for_status_error
+        self.text = text
 
     def json(self):
         return self.json_data
@@ -303,6 +304,37 @@ class TestClientMakeRequest(unittest.TestCase):
 
         with self.assertRaises(Pardot5xxError):
             client._make_request("get", "https://pi.pardot.com/api/prospect/version/{}/do/query")
+
+    @patch("tap_pardot.client.requests.request")
+    def test_make_request_403_raises_forbidden_with_detail(self, mock_request):
+        """Test 403 response raises PardotForbiddenError with endpoint and API error detail."""
+        from tap_pardot.client import PardotForbiddenError
+        api_error_body = '{"err":"Access denied","@attributes":{"err_code":15}}'
+        mock_request.return_value = MockResponse(403, json_data={}, text=api_error_body)
+        client = self._create_client_with_oauth()
+
+        with self.assertRaises(PardotForbiddenError) as ctx:
+            client._make_request("get", "https://pi.pardot.com/api/prospect/version/{}/do/query")
+
+        error_msg = str(ctx.exception)
+        self.assertIn("HTTP 403 Forbidden", error_msg)
+        self.assertIn("prospect/version/4/do/query", error_msg)
+        self.assertIn("Access denied", error_msg)
+
+    @patch("tap_pardot.client.requests.request")
+    def test_make_request_403_empty_body(self, mock_request):
+        """Test 403 with empty response body still includes endpoint in error."""
+        from tap_pardot.client import PardotForbiddenError
+        mock_request.return_value = MockResponse(403, json_data={}, text="")
+        client = self._create_client_with_oauth()
+
+        with self.assertRaises(PardotForbiddenError) as ctx:
+            client._make_request("get", "https://pi.pardot.com/api/visitor/version/{}/do/query")
+
+        error_msg = str(ctx.exception)
+        self.assertIn("HTTP 403 Forbidden", error_msg)
+        self.assertIn("visitor/version/4/do/query", error_msg)
+        self.assertIn("No additional details", error_msg)
 
     @patch("tap_pardot.client.Client.login")
     @patch("tap_pardot.client.requests.request")

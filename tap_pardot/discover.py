@@ -95,7 +95,7 @@ def _apply_access_checks(client, schemas):
 
     if not schemas:
         raise PardotForbiddenError(
-            "All streams returned 403. Verify that the credentials have read access to at least one stream."
+            "No streams are accessible. Ensure the credentials have read permission for at least one stream."
         )
     if inaccessible_streams:
         LOGGER.warning(
