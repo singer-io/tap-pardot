@@ -89,7 +89,7 @@ class Stream:
             return True
         except PardotForbiddenError as exc:
             LOGGER.warning(
-                "Unauthorized Stream: %s, excluding from catalog. HTTP ERROR '%s'",
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
                 self.stream_name,
                 str(exc),
             )
