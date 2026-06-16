@@ -99,7 +99,7 @@ def _apply_access_checks(client, schemas):
         )
     if inaccessible_streams:
         LOGGER.warning(
-            "These streams have been excluded due to 403 Forbidden: %s",
+            "These streams have been excluded due to HTTP-Error-Code:403 Forbidden: %s",
             ", ".join(inaccessible_streams),
         )
 
