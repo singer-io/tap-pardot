@@ -194,7 +194,7 @@ class Client:
         if response.status_code == 403:
             error_detail = response.text[:200] if response.text else "No additional details"
             raise PardotForbiddenError(
-                f"HTTP 403 Forbidden for endpoint {full_url}: {error_detail}"
+                f"URL: {full_url}, HTTP-Error-Code: 403, HTTP-Error-Message: {error_detail}"
             )
 
         # 5xx errors should be retried

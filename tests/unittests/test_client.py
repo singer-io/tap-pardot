@@ -317,7 +317,7 @@ class TestClientMakeRequest(unittest.TestCase):
             client._make_request("get", "https://pi.pardot.com/api/prospect/version/{}/do/query")
 
         error_msg = str(ctx.exception)
-        self.assertIn("HTTP 403 Forbidden", error_msg)
+        self.assertIn("HTTP-Error-Code: 403", error_msg)
         self.assertIn("prospect/version/4/do/query", error_msg)
         self.assertIn("Access denied", error_msg)
 
@@ -332,7 +332,7 @@ class TestClientMakeRequest(unittest.TestCase):
             client._make_request("get", "https://pi.pardot.com/api/visitor/version/{}/do/query")
 
         error_msg = str(ctx.exception)
-        self.assertIn("HTTP 403 Forbidden", error_msg)
+        self.assertIn("HTTP-Error-Code: 403", error_msg)
         self.assertIn("visitor/version/4/do/query", error_msg)
         self.assertIn("No additional details", error_msg)
 

@@ -89,10 +89,10 @@ class Stream:
             return True
         except PardotForbiddenError as exc:
             LOGGER.warning(
-                "Stream '%s' does not have read permission, excluding from catalog. Detail: %s",
-                self.stream_name,
-                str(exc),
-            )
+                    "Unauthorized Stream: %s, excluding '%s' from catalog.",
+                    str(exc),
+                    self.stream_name
+                )            
             return False
 
     def is_child_stream(self):
