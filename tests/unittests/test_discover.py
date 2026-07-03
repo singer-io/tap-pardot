@@ -2,14 +2,16 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch, mock_open
 
-from tap_pardot.discover import discover, _load_schemas, _get_abs_path, _parse_schema_description
+from tap_pardot.client import PardotForbiddenError
+from tap_pardot.discover import discover, _load_schemas, _get_abs_path, _parse_schema_description, _apply_access_checks, _prune_inaccessible_children
 
 
 class TestDiscover(unittest.TestCase):
     """Test discover function."""
 
+    @patch("tap_pardot.discover._apply_access_checks")
     @patch("tap_pardot.discover._load_schemas")
-    def test_discover_returns_catalog(self, mock_load_schemas):
+    def test_discover_returns_catalog(self, mock_load_schemas, mock_access_checks):
         """Test discover returns a valid Catalog object."""
         mock_load_schemas.return_value = {
             "prospects": {
@@ -28,8 +30,9 @@ class TestDiscover(unittest.TestCase):
         self.assertEqual(len(catalog.streams), 1)
         self.assertEqual(catalog.streams[0].stream, "prospects")
 
+    @patch("tap_pardot.discover._apply_access_checks")
     @patch("tap_pardot.discover._load_schemas")
-    def test_discover_multiple_streams(self, mock_load_schemas):
+    def test_discover_multiple_streams(self, mock_load_schemas, mock_access_checks):
         """Test discover returns catalog with multiple streams."""
         mock_load_schemas.return_value = {
             "prospects": {
@@ -55,8 +58,9 @@ class TestDiscover(unittest.TestCase):
         self.assertIn("prospects", stream_names)
         self.assertIn("campaigns", stream_names)
 
+    @patch("tap_pardot.discover._apply_access_checks")
     @patch("tap_pardot.discover._load_schemas")
-    def test_discover_sets_metadata(self, mock_load_schemas):
+    def test_discover_sets_metadata(self, mock_load_schemas, mock_access_checks):
         """Test discover sets correct metadata on catalog entries."""
         mock_load_schemas.return_value = {
             "email_clicks": {
@@ -160,5 +164,160 @@ class TestGetAbsPath(unittest.TestCase):
         self.assertTrue(result.endswith("schemas"))
 
 
-if __name__ == "__main__":
-    unittest.main()
+class TestApplyAccessChecks(unittest.TestCase):
+    """Test _apply_access_checks function."""
+
+    @patch("tap_pardot.discover.STREAM_OBJECTS")
+    def test_all_streams_accessible(self, mock_stream_objects):
+        """Test that all streams remain when all are accessible."""
+        client = MagicMock()
+        client.get.return_value = {"result": None}
+
+        mock_prospects_cls = MagicMock()
+        mock_prospects_instance = MagicMock()
+        mock_prospects_instance.check_access.return_value = True
+        mock_prospects_cls.return_value = mock_prospects_instance
+        mock_prospects_cls.parent_class = None
+
+        mock_stream_objects.get.return_value = mock_prospects_cls
+        mock_stream_objects.items.return_value = [("prospects", mock_prospects_cls)]
+        mock_stream_objects.__iter__ = lambda self: iter(["prospects"])
+
+        schemas = {"prospects": {"type": "object", "properties": {}}}
+        _apply_access_checks(client, schemas)
+
+        self.assertIn("prospects", schemas)
+
+    @patch("tap_pardot.discover.STREAM_OBJECTS")
+    def test_inaccessible_stream_excluded(self, mock_stream_objects):
+        """Test that inaccessible streams are excluded from schemas."""
+        client = MagicMock()
+
+        mock_prospects_cls = MagicMock()
+        mock_prospects_instance = MagicMock()
+        mock_prospects_instance.check_access.return_value = False
+        mock_prospects_cls.return_value = mock_prospects_instance
+        mock_prospects_cls.parent_class = None
+
+        mock_campaigns_cls = MagicMock()
+        mock_campaigns_instance = MagicMock()
+        mock_campaigns_instance.check_access.return_value = True
+        mock_campaigns_cls.return_value = mock_campaigns_instance
+        mock_campaigns_cls.parent_class = None
+
+        mock_stream_objects.get.side_effect = lambda k: {"prospects": mock_prospects_cls, "campaigns": mock_campaigns_cls}.get(k)
+        mock_stream_objects.items.return_value = [("prospects", mock_prospects_cls), ("campaigns", mock_campaigns_cls)]
+        mock_stream_objects.__getitem__ = lambda self, key: {"prospects": mock_prospects_cls, "campaigns": mock_campaigns_cls}[key]
+
+        schemas = {
+            "prospects": {"type": "object", "properties": {}},
+            "campaigns": {"type": "object", "properties": {}},
+        }
+        _apply_access_checks(client, schemas)
+
+        self.assertNotIn("prospects", schemas)
+        self.assertIn("campaigns", schemas)
+
+    @patch("tap_pardot.discover.STREAM_OBJECTS")
+    def test_all_streams_inaccessible_raises(self, mock_stream_objects):
+        """Test that PardotForbiddenError is raised when no streams are accessible."""
+        client = MagicMock()
+
+        mock_prospects_cls = MagicMock()
+        mock_prospects_instance = MagicMock()
+        mock_prospects_instance.check_access.return_value = False
+        mock_prospects_cls.return_value = mock_prospects_instance
+        mock_prospects_cls.parent_class = None
+        mock_prospects_cls.stream_name = "prospects"
+
+        mock_stream_objects.get.return_value = mock_prospects_cls
+        mock_stream_objects.items.return_value = [("prospects", mock_prospects_cls)]
+        mock_stream_objects.__getitem__ = lambda self, key: {"prospects": mock_prospects_cls}[key]
+
+        schemas = {"prospects": {"type": "object", "properties": {}}}
+
+        with self.assertRaises(PardotForbiddenError):
+            _apply_access_checks(client, schemas)
+
+
+class TestPruneInaccessibleChildren(unittest.TestCase):
+    """Test _prune_inaccessible_children function."""
+
+    @patch("tap_pardot.discover.STREAM_OBJECTS")
+    def test_child_excluded_when_parent_missing(self, mock_stream_objects):
+        """Test child streams are removed when their parent is not in schemas."""
+        from tap_pardot.streams import Visitors
+
+        mock_visits_cls = MagicMock()
+        mock_visits_cls.parent_class = Visitors
+        mock_visits_cls.parent_class.stream_name = "visitors"
+
+        mock_stream_objects.items.return_value = [("visits", mock_visits_cls)]
+
+        schemas = {"visits": {"type": "object", "properties": {}}}
+        _prune_inaccessible_children(schemas)
+
+        self.assertNotIn("visits", schemas)
+
+    @patch("tap_pardot.discover.STREAM_OBJECTS")
+    def test_child_kept_when_parent_present(self, mock_stream_objects):
+        """Test child streams remain when their parent is in schemas."""
+        from tap_pardot.streams import Visitors
+
+        mock_visits_cls = MagicMock()
+        mock_visits_cls.parent_class = Visitors
+        mock_visits_cls.parent_class.stream_name = "visitors"
+
+        mock_stream_objects.items.return_value = [("visits", mock_visits_cls)]
+
+        schemas = {
+            "visitors": {"type": "object", "properties": {}},
+            "visits": {"type": "object", "properties": {}},
+        }
+        _prune_inaccessible_children(schemas)
+
+        self.assertIn("visits", schemas)
+
+
+class TestStreamCheckAccess(unittest.TestCase):
+    """Test Stream.check_access() method."""
+
+    def test_check_access_returns_true_on_success(self):
+        """Test check_access returns True when API call succeeds."""
+        from tap_pardot.streams import Prospects
+
+        client = MagicMock()
+        client.get.return_value = {"result": None}
+
+        stream = Prospects(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
+        self.assertTrue(stream.check_access())
+
+    def test_check_access_returns_false_on_403(self):
+        """Test check_access returns False when PardotForbiddenError is raised."""
+        from tap_pardot.streams import Prospects
+
+        client = MagicMock()
+        client.get.side_effect = PardotForbiddenError("403 Forbidden")
+
+        stream = Prospects(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
+        self.assertFalse(stream.check_access())
+
+    def test_check_access_child_stream_always_true(self):
+        """Test check_access always returns True for child streams without making API calls."""
+        from tap_pardot.streams import Visits
+
+        client = MagicMock()
+        client.get.side_effect = PardotForbiddenError("403 Forbidden")
+        stream = Visits(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
+        # Child streams always return True — access governed by parent
+        self.assertTrue(stream.check_access())
+        client.get.assert_not_called()
+
+    def test_check_access_child_stream_does_not_call_api(self):
+        """Test check_access for child streams skips API call entirely."""
+        from tap_pardot.streams import ListMemberships
+
+        client = MagicMock()
+        stream = ListMemberships(client=client, config={"start_date": "2020-01-01T00:00:00Z"}, state={}, emit=False)
+        self.assertTrue(stream.check_access())
+        client.get.assert_not_called()

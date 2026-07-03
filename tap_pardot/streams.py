@@ -3,6 +3,10 @@ import inspect
 import singer
 from dateutil.parser import parse as parse_datetime
 
+from .client import PardotForbiddenError
+
+LOGGER = singer.get_logger()
+
 PARDOT_DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
@@ -26,6 +30,7 @@ class Stream:
     replication_keys = []
     replication_method = None
     is_dynamic = False
+    parent_class = None
 
     client = None
     config = None
@@ -65,6 +70,34 @@ class Stream:
 
     def post_sync(self):
         """Function to run arbitrary code after a full sync completes."""
+
+    def check_access(self):
+        """
+        Verify that the API credentials have read access to this stream.
+        Returns True if accessible, False if a 403 Forbidden error is raised.
+        Child streams always return True (access is governed by the parent check).
+        """
+        if self.is_child_stream():
+            return True
+
+        # Use the stream's normal query params — the caller (discover.py) already
+        # passes current date as start_date, so time filters are naturally current.
+        params = dict(self.get_params() or {})
+
+        try:
+            self.client.get(self.endpoint, **params)
+            return True
+        except PardotForbiddenError as exc:
+            LOGGER.warning(
+                "Unauthorized Stream: %s, excluding from catalog. HTTP-Error-Message:'%s'",
+                self.stream_name,
+                str(exc),
+            )
+            return False
+
+    def is_child_stream(self):
+        """Return True if this stream is a child stream."""
+        return self.parent_class is not None
 
     def get_records(self):
         data = self.client.get(self.endpoint, **self.get_params())
