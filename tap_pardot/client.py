@@ -84,6 +84,12 @@ class Client:
     def has_api_key_auth_values(self):
         return self.creds.get('email') and self.creds.get('password') and self.creds.get('user_key')
 
+    @backoff.on_exception(
+        backoff.expo,
+        (PardotException,Pardot5xxError),
+        giveup=is_not_retryable_pardot_exception,
+        jitter=None,
+    )
     def login(self):
         response = requests.post(
             AUTH_URL,
@@ -95,12 +101,11 @@ class Client:
             params={"format": "json"},
         )
 
-        # This will only work if they use HTTP codes. Handling Pardot
-        # errors below.
-        response.raise_for_status()
+        # 5xx errors should be retried
+        if response.status_code >= 500:
+            raise Pardot5xxError()
 
         content = response.json()
-
         self._check_error(content, "authenticating")
 
 
@@ -215,7 +220,7 @@ class Client:
 
 
             if error_code == 1:
-                LOGGER.info("API key or user key expired -- Reauthenticating once")
+                LOGGER.info("API key or user key expired -- Reauthenticating")
                 self.login()
                 response = requests.request(
                     method, full_url, headers=self._get_auth_header(), params=params
